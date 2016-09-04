@@ -46,7 +46,7 @@ type MAlgoMH <: MAlgo
     current_param   :: Array{Dict,1}  # current param value: one Dict for each chain
     MChains         :: Array{BGPChain,1} 	# collection of Chains: if N==1, length(chains) = 1
   
-    function MAlgoMH(m::MProb,opts=["N"=>3,"min_shock_sd"=>0.1,"max_shock_sd"=>1.0,"maxiter"=>100,"maxtemp"=> 100])
+    function MAlgoMH(m::MProb,opts=Dict("N"=>3,"min_shock_sd"=>0.1,"max_shock_sd"=>1.0,"maxiter"=>100,"maxtemp"=> 100))
 
     	this      = new()
     	this.m    = m 
@@ -212,13 +212,13 @@ end
 
 
 # save algo chains component-wise to HDF5 file
-function save(algo::MAlgoBGP, filename::ASCIIString)
+function save(algo::MAlgoBGP, filename::String)
     # step 1, create the file if it does not exist
     ff5 = h5open(filename, "w")
 
 	# saving the opts dict: complicated because values are numbers and strings.
-    vals = ASCIIString[]
-    keys = ASCIIString[]
+    vals = String[]
+    keys = String[]
 	for (k,v) in algo.opts
 		if typeof(v) <: Number
 			push!(vals,"$v")

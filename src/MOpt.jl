@@ -6,7 +6,7 @@ module MOpt
 
 using Distributions 
 using Reexport
-using Lumberjack
+#using Lumberjack
 using DataFrames
 import Base.show, Base.std
 using GLM
@@ -36,7 +36,7 @@ include("mopt/slices.jl")
 include("mopt/AlgoAbstract.jl")
 include("mopt/AlgoBGP.jl")
 include("mopt/ObjExamples.jl")
-include("mopt/Examples.jl")
+#include("mopt/Examples.jl")
 include("mopt/sobolsearch.jl")
 include("mopt/econometrics.jl")
 
@@ -44,10 +44,10 @@ include("mopt/econometrics.jl")
 # for now plotting only on my box because
 # installing matplotlib on unix hpc is tricky.
 # comment this out if you want the plot function
-if Sys.OS_NAME == :Darwin
-       using PyPlot
-       include("mopt/plotting.jl")
-end
+#if Sys.OS_NAME == :Darwin
+#       using PyPlot
+#       include("mopt/plotting.jl")
+#end
 
 end 	# module
 

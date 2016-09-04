@@ -31,9 +31,9 @@ type BGPChain <: AbstractChain
 		infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), exchanged_with=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
 		parameters = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ps2s_names(MProb)))))
 		moments    = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ms_names(MProb)))))
-		par_nms    = sort(Symbol[ symbol(x) for x in ps_names(MProb) ])
-		par2s_nms  = Symbol[ symbol(x) for x in ps2s_names(MProb) ]
-		mom_nms    = sort(Symbol[ symbol(x) for x in ms_names(MProb) ])
+		par_nms    = sort(Symbol[ Symbol(x) for x in ps_names(MProb) ])
+		par2s_nms  = Symbol[ Symbol(x) for x in ps2s_names(MProb) ]
+		mom_nms    = sort(Symbol[ Symbol(x) for x in ms_names(MProb) ])
 		names!(parameters,[:chain_id;:iter; par2s_nms])
 		names!(moments   ,[:chain_id;:iter; mom_nms])
 		return new(id,0,infos,parameters,moments,dist_tol,jump_prob,par_nms,mom_nms,par2s_nms,temp,shock)
@@ -129,16 +129,20 @@ function computeNextIteration!( algo::MAlgoBGP )
 	if algo.i > 1
 		# MVN = getParamKernel(algo)	# returns a MvNormal object
 		MVN = getParamCovariance(algo)	# returns a Cov matrix
-		getNewCandidates!(algo,MVN)
+		getNewCandidates!(algo,MVN)     # Return a vector of parameters dicts in algo.current_param
 	end
+
+
+    #sendto(workers(), θsub = [param(algo.current_param) for i in 1:3]) # This puts current parameter guess on each under θ
 
 	# evaluate objective on all chains
 	# --------------------------------
-	v = pmap( x -> evaluateObjective(algo.m,x), algo.current_param)
+	# v = pmap( x -> evaluateObjective(algo.m,x), algo.current_param)
+    v = pmap( x -> evaluateObjective(algo.m,θ[x],x), 1:algo["N"])
 
 	# Part 1) LOCAL MOVES ABC-MCMC for i={1,...,N}. accept/reject
 	# -----------------------------------------------------------
-	doAcceptRecject!(algo,v)
+	doAcceptReject!(algo,v)
 
 	# Part 2) EXCHANGE MOVES 
 	# ----------------------
@@ -150,7 +154,7 @@ end
 
 # notice: higher tempering draws candiates further spread out,
 # but accepts lower function values with lower probability
-function doAcceptRecject!(algo::MAlgoBGP,v::Array)
+function doAcceptReject!(algo::MAlgoBGP,v::Array)
 	for ch in 1:algo["N"]
 		chain = algo.MChains[ch]
 		eval_new  = v[ch]
@@ -325,8 +329,8 @@ function save(algo::MAlgoBGP, filename::AbstractString)
 
     ff5 = h5open(filename, "w")
 
-    vals = ASCIIString[]
-    keys = ASCIIString[]
+    vals = String[]
+    keys = String[]
 	for (k,v) in algo.opts
 		if typeof(v) <: Number
 			push!(vals,"$v")

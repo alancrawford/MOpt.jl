@@ -11,12 +11,12 @@ function serialNormal(logmode="debug")
 	# 3) S([a,b]) returns a summary of features of the data
 
 	# initial value
-	pb    = Dict("p1" => [0.2,-2,2] , "p2" => [-0.2,-2,2] )
-	moms = DataFrame(name=["mu2","mu1"],value=[0.0,0.0],weight=ones(2))
-	mprob = MProb() 
-	addSampledParam!(mprob,pb) 
-	addMoment!(mprob,moms) 
-	addEvalFunc!(mprob,objfunc_norm)
+	pb    = Dict("p1" => [0.2,-2,2] , "p2" => [-0.2,-2,2] )      		# Parameters of the Model
+	moms = DataFrame(name=["mu2","mu1"],value=[0.0,0.0],weight=ones(2)) # Moments to match on
+	mprob = MProb() 					# Initialise the model
+	addSampledParam!(mprob,pb)  		# Add parameters, pb to model just initialised, mprob
+	addMoment!(mprob,moms)  			# Add moments, moms, to model, mprob
+	addEvalFunc!(mprob,objfunc_norm)	# Add Evaluation Function
 
 	opts =Dict(
 		"N"               => 1,							# number of MCMC chains

@@ -53,8 +53,8 @@ end #type
 """
 Add initial parameter values to an `MProb` minimsation problem.
 """
-function addParam!(m::MProb,name::ASCIIString,init)
-  m.initial_value[symbol(name)] = init
+function addParam!(m::MProb,name::String,init)
+  m.initial_value[Symbol(name)] = init
 end
 
 """
@@ -62,11 +62,11 @@ Add initial parameter values to an `MProb` minimsation problem.
 
 ### Arguments:
 
-* `p`: A Dict with (ASCIIString,Number) pairs
+* `p`: A Dict with (String,Number) pairs
 """
 function addParam!(m::MProb,p::Dict)
   for k in keys(p)
-    m.initial_value[symbol(k)] = p[k]
+    m.initial_value[Symbol(k)] = p[k]
   end
 end
 
@@ -76,8 +76,8 @@ Add parameters to be sampled to an `MProb`.
 """
 function addSampledParam!(m::MProb,name::Any,init::Any, lb::Any, ub::Any)
   @assert ub>lb
-  m.initial_value[symbol(name)] = init 
-  m.params_to_sample[symbol(name)] = Dict( :lb => lb , :ub => ub)
+  m.initial_value[Symbol(name)] = init 
+  m.params_to_sample[Symbol(name)] = Dict( :lb => lb , :ub => ub)
   return m
 end
 
@@ -88,7 +88,7 @@ Add parameters to be sampled to an `MProb`.
 """
 function addSampledParam!(m::MProb,d=Dict{Any,Array{Any,1}})
   for k in keys(d)
-    addSampledParam!(m,symbol(k),d[k][1],d[k][2],d[k][3])
+    addSampledParam!(m,Symbol(k),d[k][1],d[k][2],d[k][3])
   end
   return m
 end
@@ -105,25 +105,25 @@ add a single moment to the mprob.
 `weight`: weight in the objective function
 """
 function addMoment!(m::MProb,name::Symbol,value,weight)
-  m.moments[symbol(name)] = Dict( :value => value , :weight => weight )
+  m.moments[Symbol(name)] = Dict( :value => value , :weight => weight )
   return m 
 end
 
 
-addMoment!(m::MProb,name::ASCIIString,value,weight) = addMoment!(m,symbol(name),value,weight)
-addMoment!(m::MProb,name::ASCIIString,value) = addMoment!(m,symbol(name),value,1.0)
+addMoment!(m::MProb,name::String,value,weight) = addMoment!(m,Symbol(name),value,weight)
+addMoment!(m::MProb,name::String,value) = addMoment!(m,Symbol(name),value,1.0)
 addMoment!(m::MProb,name::Symbol,value) = addMoment!(m,(name),value,1.0)
 
 function addMoment!(m::MProb,d::Dict)
   for k in keys(d)
-    addMoment!(m,symbol(k),d[k][:value],d[k][:weight])
+    addMoment!(m,Symbol(k),d[k][:value],d[k][:weight])
   end
   return m 
 end
 
 function addMoment!(m::MProb,d::DataFrame)
-  for (i in 1:nrow(d))
-    m = addMoment!(m,symbol(d[i,:name]),d[i,:value],d[i,:weight])
+  for i in 1:nrow(d)
+    m = addMoment!(m,Symbol(d[i,:name]),d[i,:value],d[i,:weight])
   end
   return m 
 end
@@ -141,7 +141,7 @@ function evaluateObjective(m::MProb,p::Dict)
     try
        ev = eval(Expr(:call,m.objfunc,ev))
     catch ex
-      Lumberjack.info("caught exception $ex")
+      println("caught exception $ex")
       ev.status = -2
     end
     gc()
@@ -153,7 +153,7 @@ function evaluateObjective(m::MProb,ev)
     try
        ev = eval(Expr(:call,m.objfunc,ev))
     catch ex
-      Lumberjack.info("caught excpetion $ex")
+      println("caught excpetion $ex")
       ev.status = -2
     end
     gc()

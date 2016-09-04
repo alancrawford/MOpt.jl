@@ -11,9 +11,12 @@ using Lazy, MOpt
 # 3) S([a,b]) returns a summary of features of the data
 
 # initial value
-pb    = ["p1" => [0.2,-2,2] , "p2" => [-0.2,-2,2] ] 
+pb    = Dict("p1" => [0.2,-2,2] , "p2" => [-0.2,-2,2] )
 moms = DataFrame(name=["mu2","mu1"],value=[0.0,0.0],weight=rand(2))
-mprob = @> MOpt.MProb() MOpt.addSampledParam!(pb) MOpt.addMoment!(moms) MOpt.addEvalFunc!(MOpt.objfunc_norm)
+mprob = MOpt.MProb() 
+addSampledParam!(mprob,pb) 
+addMoment!(mprob, moms) 
+addEvalFunc!(mprob,objfunc_norm)
 
 # look at slice of the model: 
 # how does the objective function behave 
@@ -21,7 +24,7 @@ mprob = @> MOpt.MProb() MOpt.addSampledParam!(pb) MOpt.addMoment!(moms) MOpt.add
 # the others fixed?
 
 opts =[
-	"N"               => 1,							# number of MCMC chains
+	"N"               => 10,						# number of MCMC chains [This cannot be 1!]
 	"maxiter"         => 500,						# max number of iterations
 	"savefile"        => joinpath(pwd(),"MA.h5"),	# filename to save results
 	"print_level"     => 1,							# increasing verbosity level of output

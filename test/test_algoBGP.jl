@@ -204,7 +204,7 @@ facts("testing accept reject") do
 		# set iteration on chains and algo = 1
 		MA.i = 1
 		MOpt.incrementChainIter!(MA.MChains)
-		MOpt.doAcceptRecject!(MA,v)
+		MOpt.doAcceptReject!(MA,v)
 
 		# all accepted: 
 		@fact all(infos(MA.MChains,1)[:accept]) => true
@@ -220,7 +220,7 @@ facts("testing accept reject") do
 		# set options
 		MA.i = 2
 		MOpt.incrementChainIter!(MA.MChains)
-		MOpt.doAcceptRecject!(MA,v)
+		MOpt.doAcceptReject!(MA,v)
 	end
 
 	context("testing whether params get accept/rejected") do
@@ -231,7 +231,7 @@ facts("testing accept reject") do
 		MOpt.incrementChainIter!(MA.MChains)
 		v = map( x -> MOpt.evaluateObjective(MA.m,x), MA.current_param)
 
-		MOpt.doAcceptRecject!(MA,v)
+		MOpt.doAcceptReject!(MA,v)
 
 		# second iteration
 		MA.i = 2
@@ -257,8 +257,8 @@ facts("testing accept reject") do
 		end
 		MAs = MAlgo[]
 		push!(MAs,deepcopy(MA),deepcopy(MA))
-		MOpt.doAcceptRecject!(MAs[1],v1)
-		MOpt.doAcceptRecject!(MAs[1],v2)
+		MOpt.doAcceptReject!(MAs[1],v1)
+		MOpt.doAcceptReject!(MAs[1],v2)
 
 		for ma in MAs
 			for ch in 1:ma["N"]

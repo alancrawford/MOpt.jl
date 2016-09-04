@@ -41,7 +41,7 @@ function collectFields(dict::Dict, I::UnitRange{Int}, df::Bool=false)
         cnames = Symbol[x for x in dk]
         return DataFrame(cols, cnames)
     else ## ==== return as collection
-        return([ k => v[I] for (k,v) in dict ])
+        return(Dict( k => v[I] for (k,v) in dict ))
     end
 end
 
@@ -55,7 +55,7 @@ function fillinFields!(dict::Dict,df::DataFrame,I::Int)
     end
     dk = collect(keys(dict))
     for ik in dk
-        dict[ik][I] = df[symbol(ik)][1]
+        dict[ik][I] = df[Symbol(ik)][1]
     end
 
 end
@@ -78,7 +78,7 @@ end
 function df2dict(df::DataFrame)
   nm = names(df)
   snm = map(x->string(x),nm)
-  out = [i => df[symbol(i)] for i in snm]
+  out = Dict(i => df[Symbol(i)] for i in snm)
   return out
 end
 
@@ -128,7 +128,7 @@ function fitMirror!(x::DataFrame,b::Dict)
 end
 
 
-
+#=
 function findInterval{T<:Number}(x::T,vec::Array{T})
 
     out = zeros(Int,length(x))
@@ -146,6 +146,7 @@ function findInterval{T<:Number}(x::T,vec::Array{T})
     end
     return out
 end
+=#
 function findInterval{T<:Number}(x::T,vec::Array{T})
 
     out = zeros(Int,length(x))
