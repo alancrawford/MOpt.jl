@@ -51,7 +51,7 @@ type MAlgoBGP <: MAlgo
     current_param   :: Array{Dict,1}  # current param value: one Dict for each chain
     MChains         :: Array{BGPChain,1} 	# collection of Chains: if N==1, length(chains) = 1
   
-    function MAlgoBGP(m::MProb,opts=Dict("N"=>3,"min_shock_sd"=>0.1,"max_shock_sd"=>1.0,"maxiter"=>100,"maxtemp"=> 100))
+    function MAlgoBGP(m::MProb,opts::Dict{String,Any}=Dict("N"=>3,"min_shock_sd"=>0.1,"max_shock_sd"=>1.0,"maxiter"=>100,"maxtemp"=> 100))
 
 		temps     = linspace(1.0,opts["maxtemp"],opts["N"])
 		shocksd   = linspace(opts["min_shock_sd"],opts["max_shock_sd"],opts["N"])
@@ -116,6 +116,7 @@ end
 function computeNextIteration!( algo::MAlgoBGP )
     # here is the meat of your algorithm:
     # how to go from p(t) to p(t+1) ?
+    # how to go from p(t) to p(t+1) ?
 
 	incrementChainIter!(algo.MChains)
 
@@ -137,8 +138,8 @@ function computeNextIteration!( algo::MAlgoBGP )
 
 	# evaluate objective on all chains
 	# --------------------------------
-	# v = pmap( x -> evaluateObjective(algo.m,x), algo.current_param)
-    v = pmap( x -> evaluateObjective(algo.m,θ[x],x), 1:algo["N"])
+	v = pmap( x -> evaluateObjective(algo.m,x), algo.current_param)
+    #v = pmap( x -> evaluateObjective(algo.m,θ[x],x), 1:algo["N"])
 
 	# Part 1) LOCAL MOVES ABC-MCMC for i={1,...,N}. accept/reject
 	# -----------------------------------------------------------

@@ -75,6 +75,52 @@ end
 #'   define a Test objective function
 function objfunc_norm(ev::Eval)
     
+    start(ev)
+    # info("in Test objective function objfunc_norm")
+
+    # extract parameters    
+    mu  = convert(Array{Float64,1},param(ev)) # returns entire parameter vector 
+    # use paramd(ev) to get as a dict.
+
+    # compute simulated moments
+    ns = 5000
+    sigma           = convert(Matrix,Diagonal([1.0,1.0]))
+    randMultiNormal = MOpt.MvNormal(mu,sigma) 
+    simM            = mean(rand(randMultiNormal,ns),2)
+    simMoments = Dict(:mu1 => simM[1], :mu2 => simM[2])
+
+
+    # get data mometns
+    # same thing here, and use dataMomentsWeights for sd
+    # second argument can be optional
+    # get objective value: (data[i] - model[i]) / weight[i]
+    v = Dict{Symbol,Float64}()
+    for (k,mom) in dataMomentd(ev)
+        if haskey(dataMomentWd(ev),k)
+            v[k] = ((simMoments[k] .- mom) ./ dataMomentW(ev,k)) .^2
+        else
+            v[k] = ((simMoments[k] .- mom) ) .^2
+        end
+    end
+    setValue(ev, mean(collect(values(v))))
+    # value = data - model
+    # setValue(ev, mean((simMoments - trueMoments).^2) )
+
+    # also return the moments
+    setMoment(ev, simMoments)
+    # mdf = DataFrame(name=["m1","m2"],value=simMoments[:])
+    # setMoment(ev, mdf)
+
+    ev.status = 1
+
+    # finish and return
+    finish(ev)
+
+    return ev
+end
+
+function objfunc_norm_dict(ev::Eval)
+    
 	start(ev)
 	# info("in Test objective function objfunc_norm")
 
@@ -116,7 +162,10 @@ function objfunc_norm(ev::Eval)
 	# finish and return
 	finish(ev)
 
-    return ev
+    @show ev.simMoments
+    ret = Dict("value" => ev.value, "params" => ev.params, "time" => ev.time, "status" => ev.status, "moments" => ev.simMoments)
+
+    return ret 
 end
 
 

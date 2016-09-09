@@ -41,7 +41,11 @@ function collectFields(dict::Dict, I::UnitRange{Int}, df::Bool=false)
         cnames = Symbol[x for x in dk]
         return DataFrame(cols, cnames)
     else ## ==== return as collection
-        return(Dict( k => v[I] for (k,v) in dict ))
+        d = Dict()
+        for (k,v) in dict
+            d[k] = v[i]
+        end
+        return d
     end
 end
 
@@ -78,7 +82,10 @@ end
 function df2dict(df::DataFrame)
   nm = names(df)
   snm = map(x->string(x),nm)
-  out = Dict(i => df[Symbol(i)] for i in snm)
+  out = Dict()
+  for i in snm
+    out[i] = df[Symbol(i)] 
+  end
   return out
 end
 

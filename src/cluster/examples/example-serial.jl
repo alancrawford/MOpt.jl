@@ -1,6 +1,6 @@
 	
 
-using Lazy, MOpt 
+using Lazy, MOpt , DataFrames
 
 # data are generated from a bivariate normal
 # with mu = [a,b] = [0,0]
@@ -16,16 +16,16 @@ moms = DataFrame(name=["mu2","mu1"],value=[0.0,0.0],weight=rand(2))
 mprob = MOpt.MProb() 
 addSampledParam!(mprob,pb) 
 addMoment!(mprob, moms) 
-addEvalFunc!(mprob,objfunc_norm)
+addEvalFunc!(mprob,MOpt.objfunc_norm_dict)
 
 # look at slice of the model: 
 # how does the objective function behave 
 # if we vary each parameter one by one, holding 
 # the others fixed?
 
-opts =[
-	"N"               => 10,						# number of MCMC chains [This cannot be 1!]
-	"maxiter"         => 500,						# max number of iterations
+opts =Dict(
+	"N"               => 2,						# number of MCMC chains [This cannot be 1!]
+	"maxiter"         => 200,						# max number of iterations
 	"savefile"        => joinpath(pwd(),"MA.h5"),	# filename to save results
 	"print_level"     => 1,							# increasing verbosity level of output
 	"maxtemp"         => 100,						# tempering of hottest chain
@@ -37,7 +37,7 @@ opts =[
 	"min_disttol"     => 0.1,						# distance tol for jumps from coldest chain
 	"max_disttol"     => 0.1,						# distance tol for jumps from hottest chain
 	"min_jump_prob"   => 0.05,						# prob of jumps from coldest chain
-	"max_jump_prob"   => 0.2]						# prob of jumps from hottest chain
+	"max_jump_prob"   => 0.2)						# prob of jumps from hottest chain
 
 # setup the BGP algorithm
 MA = MOpt.MAlgoBGP(mprob,opts)
