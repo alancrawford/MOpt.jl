@@ -158,7 +158,7 @@ function computeNextIteration!( algo::MAlgoABCPT )
     # starting mixing in period 3
     if algo.i>=2 && algo["N"] > 1 
         exchangeMoves!(algo)
-        tempAdapt(algo)
+        tempAdapt!(algo)
     end
 
     # Can also prune chains, but not implemented
