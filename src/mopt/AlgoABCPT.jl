@@ -17,7 +17,7 @@ type ABCPTChain <: AbstractChain
     parameters   ::DataFrame   # DataFrameionary of arrays(L,1), 1 for each parameter
     moments      ::DataFrame   # DataFrameionary of DataArrays(L,1), 1 for each moment
     dist_tol     ::Float64     # Threshold to accept draw generating SimMoments: ie.. do MH step iff ρ(SimMoments,DataMoments) < dist_tol
-    reltemp      ::Float64     # reltemp = log(hotter adjacent) 
+    reltemp      ::Float64     # reltemp = log(temp of hotter adjacent chain - temp chain) 
 
     params_nms   ::Array{Symbol,1}  # names of parameters (i.e. exclusive of "id" or "iter", etc)
     moments_nms  ::Array{Symbol,1}  # names of moments
