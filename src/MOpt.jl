@@ -13,7 +13,7 @@ using GLM
 
 
 # exports: Types
-export MProb, Chain, BGPChain, MAlgo, MAlgoBGP, Testobj, Eval, AbstractChain
+export MProb, Chain, BGPChain, ABCPTChain, MAlgo, MAlgoBGP, MAlgoABCPT, Testobj, Eval, AbstractChain
 
 # exports: methods
 export getindex, setindex, parameters, evals, infos, allstats, moments, hist,
@@ -35,6 +35,7 @@ include("mopt/chains.jl")
 include("mopt/slices.jl")
 include("mopt/AlgoAbstract.jl")
 include("mopt/AlgoBGP.jl")
+include("mopt/AlgoABCPT.jl")
 include("mopt/ObjExamples.jl")
 #include("mopt/Examples.jl")
 include("mopt/sobolsearch.jl")

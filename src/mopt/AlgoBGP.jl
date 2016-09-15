@@ -17,8 +17,8 @@ type BGPChain <: AbstractChain
 	infos        ::DataFrame   # DataFrameionary of arrays(L,1) with eval, ACC and others
 	parameters   ::DataFrame   # DataFrameionary of arrays(L,1), 1 for each parameter
 	moments      ::DataFrame   # DataFrameionary of DataArrays(L,1), 1 for each moment
-	dist_tol     ::Float64 # percentage value distance from current chain i that is considered "close" enough. i.e. close = ((val_i - val_j)/val_j < dist_tol )
-	jump_prob    ::Float64 # probability of swapping with "close" chain
+	dist_tol     ::Float64     # percentage value distance from current chain i that is considered "close" enough. i.e. close = ((val_i - val_j)/val_j < dist_tol )
+	jump_prob    ::Float64     # probability of swapping with "close" chain
 
 	params_nms   ::Array{Symbol,1}	# names of parameters (i.e. exclusive of "id" or "iter", etc)
 	moments_nms  ::Array{Symbol,1}	# names of moments
@@ -53,10 +53,10 @@ type MAlgoBGP <: MAlgo
   
     function MAlgoBGP(m::MProb,opts::Dict{String,Any}=Dict("N"=>3,"min_shock_sd"=>0.1,"max_shock_sd"=>1.0,"maxiter"=>100,"maxtemp"=> 100))
 
-		temps     = linspace(1.0,opts["maxtemp"],opts["N"])
-		shocksd   = linspace(opts["min_shock_sd"],opts["max_shock_sd"],opts["N"])
-		disttol   = linspace(opts["min_disttol"],opts["max_disttol"],opts["N"])
-		jump_prob = linspace(opts["min_jump_prob"],opts["max_jump_prob"],opts["N"])
+		temps     = logspace(0,log10(opts["maxtemp"]),opts["N"])
+		shocksd   = linspace(opts["min_shock_sd"],opts["max_shock_sd"],opts["N"])   # Not sure why spaced out? Should evolve for each chain to target acceptance level
+		disttol   = logspace(log10(opts["min_disttol"])/log10(10),log10(opts["max_disttol"])/log10(10),opts["N"])
+		jump_prob = linspace(opts["min_jump_prob"],opts["max_jump_prob"],opts["N"]) 
 	  	chains    = [BGPChain(i,m,opts["maxiter"],temps[i],shocksd[i],disttol[i],jump_prob[i]) for i=1:opts["N"] ]
 	  	# current param values
 	  	cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ] 
@@ -139,7 +139,7 @@ function computeNextIteration!( algo::MAlgoBGP )
 	# evaluate objective on all chains
 	# --------------------------------
 	v = pmap( x -> evaluateObjective(algo.m,x), algo.current_param)
-    #v = pmap( x -> evaluateObjective(algo.m,θ[x],x), 1:algo["N"])
+     #v = pmap( x -> evaluateObjective(algo.m,θ[x],x), 1:algo["N"])
 
 	# Part 1) LOCAL MOVES ABC-MCMC for i={1,...,N}. accept/reject
 	# -----------------------------------------------------------
@@ -215,16 +215,16 @@ function exchangeMoves!(algo::MAlgoBGP)
 		for ch2 in 1:algo["N"]
 			if ch != ch2
 				e2 = getEval(algo.MChains[ch2],algo.MChains[ch2].i)
-				tmp = abs(e2.value - e1.value) / abs(e1.value)
+				tmp = abs(e2.value - e1.value) / abs(e1.value)                 # Relative Absolute Difference between pait of chains.
 				# tmp = abs(evals(algo.MChains[ch2],algo.MChains[ch2].i)[1] - oldval) / abs(oldval)	# percent deviation
-				if tmp < algo.MChains[ch].dist_tol
-					push!(close,ch2)
-				end
+				if tmp < algo.MChains[ch].dist_tol                             # If chains are close (i.e. below dist_tol)....
+					push!(close,ch2)                                           # ... then add them to list of chains to sample
+				end                                                            # Q: BGP focuses on distol relative to S(x_0) i.e. simulated to actual moments. This will swap if equally bad, not if better.
 			end
 		end
 		# 2) with y% probability exchange with a randomly chosen chain from close
 		if length(close) > 0
-			if rand() < algo.MChains[ch].jump_prob
+			if rand() < algo.MChains[ch].jump_prob                             # Colder chains have lower jump prob, so this makes it harder for then to accept.
 				ex_with =sample(close)
 			#	debug("making an exchange move for chain $ch with chain $ex_with set:$close")
 				swapRows!(algo,Pair(ch,ex_with),algo.i)
