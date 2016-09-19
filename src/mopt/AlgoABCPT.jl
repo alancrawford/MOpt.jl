@@ -37,7 +37,7 @@ type ABCPTChain <: AbstractChain
         mom_nms    = sort(Symbol[ Symbol(x) for x in ms_names(MProb) ])
         names!(parameters,[:chain_id;:iter; par2s_nms])
         names!(moments   ,[:chain_id;:iter; mom_nms])
-        D = length(m.initial_value)
+        D = length(MProb.initial_value)
         mu = zeros(Float64, D)
         Sigma  = eye(D)   # Just for initiation
         
@@ -68,7 +68,7 @@ type MAlgoABCPT <: MAlgo
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
         D = length(m.initial_value)
         for i in eachindex(chains)                                 # Fill-in chain covariances (Σ₀[ch] =[ 0.1²eye(d)/d ]^[1/T] - p16 BGP2012 example)  
-            chains.Sigma[i] = diagm((0.1^(2/chains[i].tempering))*ones(D)/D )
+            chains[i].Sigma = diagm((0.1^(2/chains[i].tempering))*ones(D)/D )
         end
         swapdict = Dict{Int64, Vector{Int64}}()
         n = 0
