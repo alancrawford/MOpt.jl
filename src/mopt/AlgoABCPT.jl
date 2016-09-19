@@ -11,8 +11,8 @@ Statistical Computing, 16:95 1-964 for use in BGP (2012) ABC-PT algorithm
 =#
 
 type ABCPTChain <: AbstractChain
-    id::Int             # chain id
-    i::Int              # current index
+    id          ::Int             # chain id
+    i           ::Int              # current index
     infos        ::DataFrame   # DataFrameionary of arrays(L,1) with eval, ACC and others
     parameters   ::DataFrame   # DataFrameionary of arrays(L,1), 1 for each parameter
     moments      ::DataFrame   # DataFrameionary of DataArrays(L,1), 1 for each moment
