@@ -189,7 +189,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
                 prob = 1.0
                 ACC = true
             else                                                    # If obj fun of candidate draw worse then old ... 
-                eta = EV[ch].value - eval_old.value                 # Since new > old this is always negative
+                eta = -(EV[ch].value - eval_old.value)              # Since new > old this is always negative
                 eta /= algo.MChains[ch].tempering                   # Scale by Temperature: T⤒, prob = exp(eta) → 1
                 prob = exp(eta)                                     # Get prob = exp(x) where x∈[0,1]
                 ACC = prob > rand()                                 # Accept prob > draw from Unif[0,1]
