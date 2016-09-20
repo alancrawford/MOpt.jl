@@ -199,9 +199,12 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         #= 
             Put commands for *if accepted* actions here - ACC::Bool passed...
         =#
-
-            # Record result and some diagnostic details
-            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+            # append last accepted value
+            if ACC==true
+              appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+            else
+              appendEval!(algo.MChains[ch],eval_old,ACC,prob)
+            end
             algo.MChains[ch].infos[algo.i,:perc_new_old] = (EV[ch].value - eval_old.value) / abs(eval_old.value)
         end
         # Random Walk Adaptations
