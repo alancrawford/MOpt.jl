@@ -173,7 +173,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         # Bind variable to prob and ACC : to be updated by Accept / Reject
         prob = 1.0
         ACC = true
- # Accept/Reject
+        # Accept/Reject
         if algo.i == 1                                          # Always accept first iteration as algorithm being initiated 
             prob = 1.0
             ACC = true
@@ -213,7 +213,7 @@ end
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
 function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
         
-        step = (algo.MChains[ch].i+1)^(-0.5)  # Declining step size over iterations
+        step = (algo.i+1)^(-0.5)  # Declining step size over iterations
 
         # Get value of parameters in chain after MH 
         Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -283,9 +283,10 @@ end
 # Temperature Adaption - note: use objective values after swapping & 
 function tempAdapt!(algo::MAlgoABCPT)
 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations
+
     # Get adjustment for temperature of all but coldest chain
     for ch in 2:algo["N"]
-        step = (algo.MChains[ch].i+1)^(-0.5)  # Declining step size over iterations
         v1 = getEval(algo.MChains[ch-1],algo.MChains[ch].i).value
         b1 = 1/algo.MChains[ch-1].tempering
         
