@@ -200,7 +200,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             Put commands for *if accepted* actions here - ACC::Bool passed...
         =#
             # append last accepted value
-            if ACC==true
+            if ACC
               appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
             else
               appendEval!(algo.MChains[ch],eval_old,ACC,prob)
