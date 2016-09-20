@@ -37,7 +37,7 @@ type ABCPTChain <: AbstractChain
         mom_nms    = sort(Symbol[ Symbol(x) for x in ms_names(MProb) ])
         names!(parameters,[:chain_id;:iter; par2s_nms])
         names!(moments   ,[:chain_id;:iter; mom_nms])
-        D = length(m.initial_value)
+        D = length(MProb.initial_value)
         mu = zeros(Float64, D)
         Sigma  = eye(D)   # Just for initiation
         
@@ -68,7 +68,7 @@ type MAlgoABCPT <: MAlgo
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
         D = length(m.initial_value)
         for i in eachindex(chains)                                 # Fill-in chain covariances (Σ₀[ch] =[ 0.1²eye(d)/d ]^[1/T] - p16 BGP2012 example)  
-            chains.Sigma[i] = diagm((0.1^(2/chains[i].tempering))*ones(D)/D )
+            chains[i].Sigma = diagm((0.1^(2/chains[i].tempering))*ones(D)/D )
         end
         swapdict = Dict{Int64, Vector{Int64}}()
         n = 0
@@ -173,44 +173,45 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         # Bind variable to prob and ACC : to be updated by Accept / Reject
         prob = 1.0
         ACC = true
-
-        # Read in previous Eval in chain
-        eval_old = getEval(algo.MChains[ch],algo.i-1)
-
-        # Accept/Reject
+ # Accept/Reject
         if algo.i == 1                                          # Always accept first iteration as algorithm being initiated 
             prob = 1.0
             ACC = true
             algo.MChains[ch].infos[algo.i,:accept_rate] = 0.1
-        elseif EV[ch].value > algo.MChains[ch].dist_tol         # If not within tolerance for chain, reject wp 1. If pass here, then criteria met and do MH, Could turn this off to increase likelihood of acceptance.... 
-            prob = 0.
-            ACC = false
-        elseif  EV[ch].value < eval_old.value                   # If obj fun of candidate draw is better old accept wp 1 
-            prob = 1.0
-            ACC = true
-        else                                                    # If obj fun of candidate draw worse then old ... 
-            eta = EV[ch].value - eval_old.value                 # Since new > old this is always negative
-            eta /= algo.MChains[ch].tempering                   # Scale by Temperature: T⤒, prob = exp(eta) → 1
-            prob = exp(eta)                                     # Get prob = exp(x) where x∈[0,1]
-            ACC = prob > rand()                                 # Accept prob > draw from Unif[0,1]
-        end
+        else
+        # Read in previous Eval in chain
+        eval_old = getEval(algo.MChains[ch],algo.i-1)
+
+            if EV[ch].value > algo.MChains[ch].dist_tol         # If not within tolerance for chain, reject wp 1. If pass here, then criteria met and do MH, Could turn this off to increase likelihood of acceptance.... 
+                prob = 0.
+                ACC = false
+            elseif  EV[ch].value < eval_old.value                   # If obj fun of candidate draw is better old accept wp 1 
+                prob = 1.0
+                ACC = true
+            else                                                    # If obj fun of candidate draw worse then old ... 
+                eta = EV[ch].value - eval_old.value                 # Since new > old this is always negative
+                eta /= algo.MChains[ch].tempering                   # Scale by Temperature: T⤒, prob = exp(eta) → 1
+                prob = exp(eta)                                     # Get prob = exp(x) where x∈[0,1]
+                ACC = prob > rand()                                 # Accept prob > draw from Unif[0,1]
+            end
+        
 
         #= 
             Put commands for *if accepted* actions here - ACC::Bool passed...
         =#
 
-        # Record result and some diagnostic details
-        appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
-        algo.MChains[ch].infos[algo.i,:perc_new_old] = (EV[ch].value - eval_old.value) / abs(eval_old.value)
- 
+            # Record result and some diagnostic details
+            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+            algo.MChains[ch].infos[algo.i,:perc_new_old] = (EV[ch].value - eval_old.value) / abs(eval_old.value)
+        end
         # Random Walk Adaptations
-        rwAdapt!(algo,ACC)
+        rwAdapt!(algo,ACC,ch)
  
     end
 end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
-function rwAdapt!(algo::MAlgoABCPT, ACC::Bool)
+function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
         
         step = (algo.MChains[ch].i+1)^(-0.5)  # Declining step size over iterations
 
@@ -243,8 +244,12 @@ function exchangeMoves!(algo::MAlgoABCPT)
         v2 = getEval(algo.MChains[ch2],algo.MChains[ch2].i).value 
         push!(swapprob, exp(-abs(v1 - v2))) 
     end
-    push!(swapprob, 1-sum(swapprob))    # No swap option added
-
+    if sum(swapprob)>1.0 # need to ensure probabilities sum to 1
+      swapprob /= sum(swapprob)
+      push!(swapprob, 0.0)
+    else
+      push!(swapprob, 1-sum(swapprob))    # No swap option added
+    end
     swaplist = rand(Categorical(swapprob), algo["N"])
     for i in swaplist
         if i<length(swaplist)
@@ -278,14 +283,13 @@ end
 # Temperature Adaption - note: use objective values after swapping & 
 function tempAdapt!(algo::MAlgoABCPT)
 
-    step = (algo.MChains[ch].i+1)^(-0.5)  # Declining step size over iterations
-    
     # Get adjustment for temperature of all but coldest chain
     for ch in 2:algo["N"]
+        step = (algo.MChains[ch].i+1)^(-0.5)  # Declining step size over iterations
         v1 = getEval(algo.MChains[ch-1],algo.MChains[ch].i).value
         b1 = 1/algo.MChains[ch-1].tempering
         
-        v2 = getEval(algo.MChains[ch],algo.MChains[ch2].i).value
+        v2 = getEval(algo.MChains[ch],algo.MChains[ch].i).value
         b2 = 1/algo.MChains[ch].tempering
         
         xi = min(1, exp((b2-b1)*(v2 - v1)) )
