@@ -17,7 +17,7 @@ type ABCPTChain <: AbstractChain
     parameters   ::DataFrame   # DataFrameionary of arrays(L,1), 1 for each parameter
     moments      ::DataFrame   # DataFrameionary of DataArrays(L,1), 1 for each moment
     dist_tol     ::Float64     # Threshold to accept draw generating SimMoments: ie.. do MH step iff ρ(SimMoments,DataMoments) < dist_tol
-    reltemps      ::Float64     # reltemp = log(temp of hotter adjacent chain - temp chain) 
+    reltemp      ::Float64     # reltemp = log(temp of hotter adjacent chain - temp chain) 
 
     params_nms   ::Array{Symbol,1}  # names of parameters (i.e. exclusive of "id" or "iter", etc)
     moments_nms  ::Array{Symbol,1}  # names of moments
@@ -28,7 +28,7 @@ type ABCPTChain <: AbstractChain
     mu         :: Vector{Float64}
     Sigma      :: Matrix{Float64}  # Current estimate of Covariance within chain
 
-    function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemps)
+    function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemp)
         infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), exchanged_with=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
         parameters = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ps2s_names(MProb)))))
         moments    = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ms_names(MProb)))))
@@ -41,7 +41,7 @@ type ABCPTChain <: AbstractChain
         mu = zeros(Float64, D)
         Sigma  = eye(D)   # Just for initiation
         
-        return new(id,0,infos,parameters,moments,dist_tol,reltemps,par_nms,mom_nms,par2s_nms,temp,shock,mu,Sigma)
+        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,Sigma)
     end
 end
 
@@ -292,12 +292,12 @@ function tempAdapt!(algo::MAlgoABCPT)
         b2 = 1/algo.MChains[ch].tempering
         
         xi = min(1, exp((b2-b1)*(v2 - v1)) )
-        algo.reltemps[ch] += step * (xi - 0.234)
+        algo.MChains[ch].reltemp += step * (xi - 0.234)
     end
 
     # Get new temp spacing: Start at T1, add new spacing on to define new temperatures
     for ch in 2:algo["N"]
-        algo.MChains[ch].tempering = algo.MChains[ch-1].tempering + exp(algo.reltemps[ch])
+        algo.MChains[ch].tempering = algo.MChains[ch-1].tempering + exp(algo.MChains[ch].reltemp)
     end    
 end
 
