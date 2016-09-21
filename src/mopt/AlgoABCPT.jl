@@ -17,7 +17,7 @@ type ABCPTChain <: AbstractChain
     parameters   ::DataFrame   # DataFrameionary of arrays(L,1), 1 for each parameter
     moments      ::DataFrame   # DataFrameionary of DataArrays(L,1), 1 for each moment
     dist_tol     ::Float64     # Threshold to accept draw generating SimMoments: ie.. do MH step iff ρ(SimMoments,DataMoments) < dist_tol
-    reltemp      ::Float64     # reltemp = log(temp of hotter adjacent chain - temp chain) 
+    reltemps      ::Float64     # reltemp = log(temp of hotter adjacent chain - temp chain) 
 
     params_nms   ::Array{Symbol,1}  # names of parameters (i.e. exclusive of "id" or "iter", etc)
     moments_nms  ::Array{Symbol,1}  # names of moments
@@ -28,7 +28,7 @@ type ABCPTChain <: AbstractChain
     mu         :: Vector{Float64}
     Sigma      :: Matrix{Float64}  # Current estimate of Covariance within chain
 
-    function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemp)
+    function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemps)
         infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), exchanged_with=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
         parameters = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ps2s_names(MProb)))))
         moments    = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ms_names(MProb)))))
@@ -41,7 +41,7 @@ type ABCPTChain <: AbstractChain
         mu = zeros(Float64, D)
         Sigma  = eye(D)   # Just for initiation
         
-        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,Sigma)
+        return new(id,0,infos,parameters,moments,dist_tol,reltemps,par_nms,mom_nms,par2s_nms,temp,shock,mu,Sigma)
     end
 end
 
@@ -62,8 +62,8 @@ type MAlgoABCPT <: MAlgo
         temps     = logspace(0,log10(opts["maxtemp"]),opts["N"])
         shocksd   = opts["shock_sd"]*ones(Float64,opts["N"])  
         disttol   = logspace(log10(opts["min_disttol"]),log10(opts["max_disttol"]),opts["N"])           # In normalised resid_ssq think of disttol as (average num of sd away from moments)^2
-        reltemp = vcat(0, log(temps[2:end] - temps[1:end-1]))
-        chains = [ABCPTChain(i,m,opts["maxiter"],temps[i],shocksd[i],disttol[i],reltemp[i]) for i=1:opts["N"] ]
+        reltemps = vcat(0, log(temps[2:end] - temps[1:end-1]))
+        chains = [ABCPTChain(i,m,opts["maxiter"],temps[i],shocksd[i],disttol[i],reltemps[i]) for i=1:opts["N"] ]
         # current param values
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
         D = length(m.initial_value)
@@ -195,15 +195,11 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
                 ACC = prob > rand()                                 # Accept prob > draw from Unif[0,1]
             end
         
-
-        #= 
-            Put commands for *if accepted* actions here - ACC::Bool passed...
-        =#
             # append last accepted value
             if ACC
-              appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+                appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
             else
-              appendEval!(algo.MChains[ch],eval_old,ACC,prob)
+                appendEval!(algo.MChains[ch],eval_old,ACC,prob)
             end
             algo.MChains[ch].infos[algo.i,:perc_new_old] = (EV[ch].value - eval_old.value) / abs(eval_old.value)
         end
@@ -215,27 +211,26 @@ end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
 function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
-        
-        step = (algo.i+1)^(-0.5)  # Declining step size over iterations
+    
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations
 
-        # Get value of parameters in chain after MH 
-        Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
+    # Get value of parameters in chain after MH 
+    Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
-        # Update Covariance matrix (before update mu)
-        dev = Xtilde - algo.MChains[ch].mu
-        algo.MChains[ch].Sigma -= step * (algo.MChains[ch].Sigma- A_mul_Bt(dev,dev))
+    # Update Covariance matrix (before update mu)
+    dev = Xtilde - algo.MChains[ch].mu
+    algo.MChains[ch].Sigma -= step * (algo.MChains[ch].Sigma- A_mul_Bt(dev,dev))
 
-        # Update Mean of Parameters 
-        if algo.i==1
-            algo.MChains[ch].mu = Xtilde
-        else
-            algo.MChains[ch].mu -= step * (algo.MChains[ch].mu - Xtilde) 
-        end
-
+    # Update Mean of Parameters 
+    if algo.i==1
+        algo.MChains[ch].mu = Xtilde
+    else
+        algo.MChains[ch].mu -= step * (algo.MChains[ch].mu - Xtilde) 
         # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
         algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.9 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1 * ACC
         algo.MChains[ch].shock_sd                     = algo.MChains[ch].shock_sd + step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
         algo.MChains[ch].infos[algo.i,:shock_sd]      = algo.MChains[ch].shock_sd
+    end
 end
 
 # State-dependent swap strategies (max swapping - more efficient than random pairs)
