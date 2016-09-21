@@ -63,8 +63,8 @@ function runMOpt!( algo::MAlgo )
 	end
 	t1 = round((time()-t0)/60,1)
 	algo.opts["time"] = t1
-	if haskey(algo.opts,"filename")
-		save(algo,algo["filename"])
+	if haskey(algo.opts,"savefile")
+		save(algo,algo["savefile"])
 	else
 		println("could not find 'filename' and did not save")
 	end
