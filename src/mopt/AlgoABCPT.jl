@@ -156,7 +156,7 @@ function computeNextIteration!( algo::MAlgoABCPT )
     # Part 2) EXCHANGE MOVES 
     # ----------------------
     # starting mixing in period 3
-    if algo.i>=2 && algo["N"] > 1 
+    if algo.i>=3 && algo["N"] > 1 
         exchangeMoves!(algo)
         tempAdapt!(algo)
     end
@@ -177,10 +177,11 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         if algo.i == 1                                          # Always accept first iteration as algorithm being initiated 
             prob = 1.0
             ACC = true
+            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
             algo.MChains[ch].infos[algo.i,:accept_rate] = 0.1
         else
-        # Read in previous Eval in chain
-        eval_old = getEval(algo.MChains[ch],algo.i-1)
+            # Read in previous Eval in chain
+            eval_old = getEval(algo.MChains[ch],algo.i-1)
 
             if EV[ch].value > algo.MChains[ch].dist_tol         # If not within tolerance for chain, reject wp 1. If pass here, then criteria met and do MH, Could turn this off to increase likelihood of acceptance.... 
                 prob = 0.
