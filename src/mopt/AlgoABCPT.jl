@@ -11,8 +11,8 @@ Statistical Computing, 16:95 1-964 for use in BGP (2012) ABC-PT algorithm
 =#
 
 type ABCPTChain <: AbstractChain
-    id          ::Int             # chain id
-    i           ::Int              # current index
+    id          :: Int             # chain id
+    i           :: Int              # current index
     infos        ::DataFrame   # DataFrameionary of arrays(L,1) with eval, ACC and others
     parameters   ::DataFrame   # DataFrameionary of arrays(L,1), 1 for each parameter
     moments      ::DataFrame   # DataFrameionary of DataArrays(L,1), 1 for each moment
@@ -26,7 +26,7 @@ type ABCPTChain <: AbstractChain
     tempering  ::Float64 # tempering in update probability
     shock_sd   ::Float64 # sd of shock to covariance  
     mu         :: Vector{Float64}
-    Sigma      :: Matrix{Float64}  # Current estimate of Covariance within chain
+    F          :: LinAlg.Cholesky{Float64,Matrix{Float64}}  # Current estimate of Cholesky decomp of covariance within chain: Σ = F[:L]*F[:L]' = F[:U]'*F[:U]
 
     function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemp)
         infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), exchanged_with=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
@@ -39,9 +39,9 @@ type ABCPTChain <: AbstractChain
         names!(moments   ,[:chain_id;:iter; mom_nms])
         D = length(MProb.initial_value)
         mu = zeros(Float64, D)
-        Sigma  = eye(D)   # Just for initiation
+        F  = LinAlg.cholfact(eye(D))   # Just for initiation
         
-        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,Sigma)
+        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,F)
     end
 end
 
@@ -68,7 +68,7 @@ type MAlgoABCPT <: MAlgo
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
         D = length(m.initial_value)
         for i in eachindex(chains)                                 # Fill-in chain covariances (Σ₀[ch] =[ 0.1²eye(d)/d ]^[1/T] - p16 BGP2012 example)  
-            chains[i].Sigma = diagm((0.1^(2/chains[i].tempering))*ones(D)/D )
+            chains[i].F = LinAlg.cholfact(diagm((0.1^(2/chains[i].tempering))*ones(D)/D ))
         end
         swapdict = Dict{Int64, Vector{Int64}}()
         n = 0
@@ -178,7 +178,6 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             prob = 1.0
             ACC = true
             appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
-            algo.MChains[ch].infos[algo.i,:accept_rate] = 0.1
         else
             # Read in previous Eval in chain
             eval_old = getEval(algo.MChains[ch],algo.i-1)
@@ -218,20 +217,45 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
     # Get value of parameters in chain after MH 
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
-    # Update Covariance matrix (before update mu)
-    dev = Xtilde - algo.MChains[ch].mu
-    algo.MChains[ch].Sigma -= step * (algo.MChains[ch].Sigma- A_mul_Bt(dev,dev))
+    # Update Cholesky Factorisation of Covariance matrix (before update mu)
+    LinAlg.lowrankupdate!(algo.MChains[ch].F, Xtilde - algo.MChains[ch].mu)
 
     # Update Mean of Parameters 
     if algo.i==1
         algo.MChains[ch].mu = Xtilde
+        algo.MChains[ch].infos[algo.i,:accept_rate] = algo.MChains[ch].shock_sd
     else
         algo.MChains[ch].mu -= step * (algo.MChains[ch].mu - Xtilde) 
         # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
-        algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.9 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1 * ACC
+        algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.99 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.01 * ACC
         algo.MChains[ch].shock_sd                     = algo.MChains[ch].shock_sd + step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
         algo.MChains[ch].infos[algo.i,:shock_sd]      = algo.MChains[ch].shock_sd
     end
+end
+
+# N randonly chosen pairs with replacement - this is BGP
+function exchangeMovesRA!(algo::MAlgoABCPT)
+
+    swaplist = unique(rand(1:length(algo.swapdict), algo["N"]))     # Since deterministic swap rule, no point repeating - only at draw
+    for i in swaplist
+        cold, hot = algo.swapdict[i]
+
+        vcold = getEval(algo.MChains[cold],algo.i).value
+        bcold = 1/algo.MChains[cold].tempering
+        
+        vhot = getEval(algo.MChains[hot],algo.i).value
+        bhot = 1/algo.MChains[hot].tempering
+        
+        # Δb:=(bhot-bcold)<0. ACC wp 1 if vhot<vcol, ACC wp∈[0,1] if vhot>vcold. More likely to accept at similar temps i.e. Δb→0 
+        xi = min(1, exp((bhot-bcold)*(vhot-vcold)))
+
+        if <(vhot,algo.MChains[cold].dist_tol) & >(xi,rand())
+            swapRows!(algo,Pair(cold,hot),algo.i)
+        else 
+            nothing
+        end
+    end
+
 end
 
 # State-dependent swap strategies (max swapping - more efficient than random pairs)
@@ -239,23 +263,40 @@ function exchangeMoves!(algo::MAlgoABCPT)
  
     swapprob = Float64[]
     for ch in 1:algo["N"], ch2 in ch+1:algo["N"]
-        v1 = getEval(algo.MChains[ch],algo.MChains[ch].i).value
-        v2 = getEval(algo.MChains[ch2],algo.MChains[ch2].i).value 
+        v1 = getEval(algo.MChains[ch],algo.i).value
+        v2 = getEval(algo.MChains[ch2],algo.i).value 
         push!(swapprob, exp(-abs(v1 - v2))) 
     end
     if sum(swapprob)>1.0 # need to ensure probabilities sum to 1
       swapprob /= sum(swapprob)
       push!(swapprob, 0.0)
     else
-      push!(swapprob, 1-sum(swapprob))    # No swap option added
+      push!(swapprob, 1-sum(swapprob))    # 'No swap' option added
     end
+
     swaplist = rand(Categorical(swapprob), algo["N"])
     for i in swaplist
         if i<length(swaplist)
-            ch, ex_with = algo.swapdict[i]
-            v2 = getEval(algo.MChains[ex_with],algo.MChains[ex_with].i).value 
-            if v2 < algo.MChains[ch].dist_tol
-                swapRows!(algo,Pair(ch,ex_with),algo.i)
+            cold, hot = algo.swapdict[i]
+
+            vcold = getEval(algo.MChains[cold],algo.i).value
+            bcold = 1/algo.MChains[cold].tempering
+            
+            vhot = getEval(algo.MChains[hot],algo.i).value
+            bhot = 1/algo.MChains[hot].tempering
+            
+            # Δb:=(bhot-bcold)<0. ACC wp 1 if vhot<vcol, ACC wp∈[0,1] if vhot>vcold. More likely to accept at similar temps i.e. Δb→0 
+            xi = min(1, exp((bhot-bcold)*(vhot-vcold)))
+
+            if vcold < algo.MChains[cold].dist_tol
+                if vhot < algo.MChains[cold].dist_tol & xi >rand()   # Double barrier if current guess within tolerance limit
+                    swapRows!(algo,CC,Pair(cold,hot),algo.i)
+                end
+            else 
+                if xi > rand()   # Curent guess not met, just accept it if better
+                    swapRows!(algo,CC,Pair(cold,hot),algo.i)
+                end
+
             end
         else 
             nothing
@@ -263,6 +304,7 @@ function exchangeMoves!(algo::MAlgoABCPT)
     end
 
 end
+
 
 function swapRows!(algo::MAlgoABCPT,pair::Pair,i::Int)
 
@@ -286,13 +328,13 @@ function tempAdapt!(algo::MAlgoABCPT)
 
     # Get adjustment for temperature of all but coldest chain
     for ch in 2:algo["N"]
-        v1 = getEval(algo.MChains[ch-1],algo.MChains[ch].i).value
+        v1 = getEval(algo.MChains[ch-1],algo.i).value
         b1 = 1/algo.MChains[ch-1].tempering
         
-        v2 = getEval(algo.MChains[ch],algo.MChains[ch].i).value
+        v2 = getEval(algo.MChains[ch],algo.i).value
         b2 = 1/algo.MChains[ch].tempering
         
-        xi = min(1, exp((b2-b1)*(v2 - v1)) )
+        xi = min(1, exp((b2-b1)*(v2 - v1))) # Since b2-b1<0, will accept wp1 when v2-v1<0 (i.e. v2<v1). If similar temps, Δb→0 more likely to accept.   
         algo.MChains[ch].reltemp += step * (xi - 0.234)
     end
 
@@ -306,9 +348,12 @@ end
 # function getNewCandidates!
 function getNewCandidates!(algo::MAlgoABCPT)
 
+    # Number of parameters
+    D = size(algo.MChains[1].F.factors,1)
+
     # update chain by chain
     for ch in 1:algo["N"]
-        shock = rand(MvNormal(algo.MChains[ch].Sigma)) * exp(algo.MChains[ch].shock_sd)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+        shock = exp(algo.MChains[ch].shock_sd) *algo.MChains[ch].F[:L] *randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
         jumpParams!(algo,ch,shockd)                              # Add to parameters
     end

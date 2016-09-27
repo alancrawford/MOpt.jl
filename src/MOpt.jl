@@ -8,7 +8,7 @@ using Distributions
 using Reexport
 #using Lumberjack
 using DataFrames
-import Base.show, Base.std
+import Base.show, Base.std, Base.LinAlg
 using GLM
 
 
