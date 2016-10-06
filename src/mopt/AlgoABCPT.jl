@@ -218,7 +218,7 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
-    Fnew = LinAlg.lowrankupdate(algo.MChains[ch].F, Xtilde - algo.MChains[ch].mu)
+    LinAlg.lowrankupdate!(algo.MChains[ch].F, Xtilde - algo.MChains[ch].mu)
 
     # Update Mean of Parameters 
     if algo.i==1
@@ -228,9 +228,6 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
         # Update mu
         algo.MChains[ch].mu *= (1-step) 
         algo.MChains[ch].mu += step * (algo.MChains[ch].mu - Xtilde) 
-        # Update cholesky fact of covariance
-        algo.MChains[ch].F *= (1-step)
-        algo.MChains[ch].F += step * Fnew
         # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
         algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.9 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1 * ACC
         algo.MChains[ch].shock_sd                     += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
