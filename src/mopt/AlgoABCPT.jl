@@ -67,8 +67,8 @@ type MAlgoABCPT <: MAlgo
         # current param values
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
         D = length(m.initial_value)
-        for i in eachindex(chains)                                 # Fill-in chain covariances (Σ₀[ch] =[ 0.1²eye(d)/d ]^[1/T] - p16 BGP2012 example)  
-            chains[i].F = LinAlg.cholfact(diagm((0.1^(2/chains[i].tempering))*ones(D)/D ))
+        for i in eachindex(chains)                                 # Fill-in chain covariances (Σ₀[ch] =[ 2.38²eye(D)/D ]^[1/T] - p16 BGP2012 example)  
+            chains[i].F = LinAlg.cholfact(diagm((2.38^(2/chains[i].tempering)/D)*ones(D) ))
         end
         swapdict = Dict{Int64, Vector{Int64}}()
         n = 0
@@ -217,18 +217,23 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
     # Get value of parameters in chain after MH 
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
-    # Update Cholesky Factorisation of Covariance matrix (before update mu)
-    LinAlg.lowrankupdate!(algo.MChains[ch].F, Xtilde - algo.MChains[ch].mu)
+    # Get Cholesky Factorisation of Covariance matrix (before update mu)
+    Fnew = LinAlg.lowrankupdate(algo.MChains[ch].F, Xtilde - algo.MChains[ch].mu)
 
     # Update Mean of Parameters 
     if algo.i==1
         algo.MChains[ch].mu = Xtilde
         algo.MChains[ch].infos[algo.i,:accept_rate] = .1
     else
-        algo.MChains[ch].mu -= step * (algo.MChains[ch].mu - Xtilde) 
+        # Update mu
+        algo.MChains[ch].mu *= (1-step) 
+        algo.MChains[ch].mu += step * (algo.MChains[ch].mu - Xtilde) 
+        # Update cholesky fact of covariance
+        algo.MChains[ch].F *= (1-step)
+        algo.MChains[ch].F += step * Fnew
         # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
-        algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.99 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.01 * ACC
-        algo.MChains[ch].shock_sd                     = algo.MChains[ch].shock_sd + step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
+        algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.9 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1 * ACC
+        algo.MChains[ch].shock_sd                     += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
         algo.MChains[ch].infos[algo.i,:shock_sd]      = algo.MChains[ch].shock_sd
     end
 end
