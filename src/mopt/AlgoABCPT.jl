@@ -223,13 +223,13 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
     # Update Mean of Parameters 
     if algo.i==1
         algo.MChains[ch].mu = Xtilde
-        algo.MChains[ch].infos[algo.i,:accept_rate] = .1
+        algo.MChains[ch].infos[algo.i,:accept_rate] = 1
     else
         # Update mu
         algo.MChains[ch].mu *= (1-step) 
         algo.MChains[ch].mu += step * (algo.MChains[ch].mu - Xtilde) 
         # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
-        algo.MChains[ch].infos[algo.i,:accept_rate]   = 0.9 * algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1 * ACC
+        algo.MChains[ch].infos[algo.i,:accept_rate]   = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
         algo.MChains[ch].shock_sd                     += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
         algo.MChains[ch].infos[algo.i,:shock_sd]      = algo.MChains[ch].shock_sd
     end
