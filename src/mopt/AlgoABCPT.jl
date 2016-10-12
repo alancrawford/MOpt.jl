@@ -214,7 +214,8 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
     
     step = (algo.i+1)^(-0.5)  # Declining step size over iterations
 
-    # Get value of parameters in chain after MH 
+    # Get value of parameters in chain after MH
+
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
@@ -226,8 +227,8 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
         algo.MChains[ch].infos[algo.i,:accept_rate] = 1
     else
         # Update mu
-        algo.MChains[ch].mu *= (1-step) 
-        algo.MChains[ch].mu += step * (algo.MChains[ch].mu - Xtilde) 
+        range = algo.i>30 ? collect(algo.i+1-30:algo.i) : collect(1:algo.i)
+        algo.MChains[ch].mu = mean(convert(Array,parameters(algo.MChains[ch],range)[:, ps2s_names(algo.m)]),1)[:] 
         # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
         algo.MChains[ch].infos[algo.i,:accept_rate]   = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
         algo.MChains[ch].shock_sd                     += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)

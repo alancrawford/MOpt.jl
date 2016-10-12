@@ -45,6 +45,11 @@ end
 function parameters(c::AbstractChain, i::Union{Integer, UnitRange{Int}})
     c.parameters[i,c.params2s_nms]
 end
+
+function parameters(c::AbstractChain, i::Vector{Int64})
+    c.parameters[i,c.params2s_nms]
+end
+
 function parameters(c::AbstractChain)
     c.parameters[:,c.params2s_nms]
 end
