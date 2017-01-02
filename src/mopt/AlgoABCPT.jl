@@ -23,8 +23,8 @@ type ABCPTChain <: AbstractChain
     moments_nms  ::Array{Symbol,1}  # names of moments
     params2s_nms ::Array{Symbol,1}  # DataFrame names of parameters to sample 
 
-    tempering  ::Float64 # tempering in update probability
-    shock_sd   ::Float64 # sd of shock to covariance  
+    tempering  :: Float64 # tempering in update probability
+    shock_sd   :: Vector{Float64} # sd of shock to covariance  
     mu         :: Vector{Float64}
     F          :: LinAlg.Cholesky{Float64,Matrix{Float64}}  # Current estimate of Cholesky decomp of covariance within chain: Σ = F[:L]*F[:L]' = F[:U]'*F[:U]
 
@@ -41,7 +41,7 @@ type ABCPTChain <: AbstractChain
         mu = zeros(Float64, D)
         F  = LinAlg.cholfact(eye(D))   # Just for initiation
         
-        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,F)
+        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock*ones(D),mu,F)
     end
 end
 
@@ -360,7 +360,21 @@ function getNewCandidates!(algo::MAlgoABCPT)
 
     # update chain by chain
     for ch in 1:algo["N"]
-        shock = exp(algo.MChains[ch].shock_sd) *algo.MChains[ch].F[:L] *randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+        # constraint the shock_sd: 95% conf interval should not exceed overall param interval width 
+
+        #= Key equation: 
+            2 x 1.96 x L x exp(shocksd_ub) = θ_ub - θ_lb 
+            ⟹ L x exp(shocksd_ub) = θ_ub - θ_lb / 2 x 1.96 
+            ⟹ L^-1 x L * exp(shocksd_ub) = L^-1 x (θ_ub - θ_lb / 2 x 1.96 )
+            ⟹ shocksd_ub = log(L^-1 x (θ_ub - θ_lb / 2 x 1.96 ))
+        =#
+
+        shock_ub = log(inv(algo.MChains[ch].F[:L])*[ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2))
+        #shock_ub  = minimum(   shock_list  )
+        algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
+
+        # shock parameters on chain index ch
+        shock = exp(algo.MChains[ch].shock_sd).*algo.MChains[ch].F[:L] *randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
         jumpParams!(algo,ch,shockd)                              # Add to parameters
     end
