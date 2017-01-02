@@ -385,10 +385,14 @@ end
 function jumpParams!(algo::MAlgoABCPT,ch::Int,shock::Dict)
     eval_old = getLastEval(algo.MChains[ch])
     for k in keys(eval_old.params)
-        algo.current_param[ch][k] = eval_old.params[k] + shock[k]
+        algo.current_param[ch][k] = max(algo.m.params_to_sample[k][:lb],
+                                         min(eval_old.params[k] + shock[k], 
+                                               algo.m.params_to_sample[k][:ub]))
     end
 end
 
+,
+                                                
 
 # save algo chains component-wise to HDF5 file
 function save(algo::MAlgoABCPT, filename::AbstractString)
