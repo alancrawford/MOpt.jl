@@ -361,16 +361,8 @@ function getNewCandidates!(algo::MAlgoABCPT)
     # update chain by chain
     for ch in 1:algo["N"]
         # constraint the shock_sd: 95% conf interval should not exceed overall param interval width 
-
-        #= Key equation: 
-            2 x 1.96 x L x exp(shocksd_ub) = θ_ub - θ_lb 
-            ⟹ L x exp(shocksd_ub) = θ_ub - θ_lb / 2 x 1.96 
-            ⟹ L^-1 x L * exp(shocksd_ub) = L^-1 x (θ_ub - θ_lb / 2 x 1.96 )
-            ⟹ shocksd_ub = log(L^-1 x (θ_ub - θ_lb / 2 x 1.96 ))
-        =#
-
-        shock_ub = log(inv(algo.MChains[ch].F[:L])*[ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2))
-        #shock_ub  = minimum(   shock_list  )
+        σ = sqrt(diag(algo.MChains[ch].F[:L]*algo.MChains[ch].F[:L]'))
+        shock_ub = log([ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2 * σ))
         algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
 
         # shock parameters on chain index ch
