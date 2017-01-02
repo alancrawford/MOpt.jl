@@ -381,10 +381,7 @@ function jumpParams!(algo::MAlgoABCPT,ch::Int,shock::Dict)
                                          min(eval_old.params[k] + shock[k], 
                                                algo.m.params_to_sample[k][:ub]))
     end
-end
-
-,
-                                                
+end                                                
 
 # save algo chains component-wise to HDF5 file
 function save(algo::MAlgoABCPT, filename::AbstractString)
