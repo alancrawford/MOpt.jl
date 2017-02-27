@@ -235,7 +235,7 @@ function rwAdapt!(algo::MAlgoABCPT, ACC::Bool, ch::Int64)
         if algo.i>100
             algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[algo.i-100:algo.i,:accept])/100 
         else
-            algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i:accept])/algo.i
+            algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
         end
         algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
         algo.MChains[ch].infos[algo.i,:shock_sd]      = mean(algo.MChains[ch].shock_sd)
