@@ -143,6 +143,7 @@ function computeNextIteration!( algo::MAlgoABCPT )
     # --------------
     if algo.i > 1
         getNewCandidates!(algo)     # Return a vector of parameters dicts in algo.current_param
+        #getNewCandidatesGrp!(algo)     # Use this function to sample subsets of parameters holding others fixed
     end
 
     # evaluate objective on all chains
@@ -371,6 +372,41 @@ function getNewCandidates!(algo::MAlgoABCPT)
 
 end
 
+# function getNewCandidates!
+function getNewCandidatesGrp!(algo::MAlgoABCPT)
+
+    # Number of parameters
+    D = size(algo.MChains[1].F.factors,1)
+
+    # Randomly pick a subset of parameters to sample - specified in algo.opts["param_grps"]
+    pgrp = drawParamGrp(algo)
+
+    # update chain by chain
+    for ch in 1:algo["N"]
+        # constraint the shock_sd: 95% conf interval should not exceed overall param interval width 
+        σ = sqrt(diag(algo.MChains[ch].F[:L]*algo.MChains[ch].F[:L]'))
+        shock_ub = log([ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2 * σ))
+        algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
+
+        # shock parameters on chain index ch
+        shock = exp(algo.MChains[ch].shock_sd).*algo.MChains[ch].F[:L] *randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+        shockd = Dict(zip(ps2s_names(algo) , shock))                  # Put in a dictionary
+        jumpParams!(algo,ch,shockd,pgrp)                              # Add to parameters
+    end
+
+end
+
+# Draw a subset of parameter vector to sample at this iteration
+function drawParamGrp(algo::MOpt.MAlgoABCPT)
+    n=rand(1:length(algo["param_grps"]))
+    par_to_sample = Dict()
+    for k in keys(algo.m.params_to_sample)
+        if contains(string(k),algo["param_grps"][n])
+            par_to_sample[k] = algo.m.params_to_sample[k]
+        end
+    end
+    return par_to_sample
+end
 
 function jumpParams!(algo::MAlgoABCPT,ch::Int,shock::Dict)
     eval_old = getLastEval(algo.MChains[ch])
@@ -380,6 +416,20 @@ function jumpParams!(algo::MAlgoABCPT,ch::Int,shock::Dict)
                                                algo.m.params_to_sample[k][:ub]))
     end
 end                                                
+
+# Allow subsets of parameters while others fixed
+function jumpParams!(algo::MAlgoABCPT,ch::Int,shock::Dict,params::Dict)
+    eval_old = getLastEval(algo.MChains[ch])
+    for k in keys(eval_old.params)
+        if in(k,keys(params))
+            algo.current_param[ch][k] = max(params[k][:lb],
+                                         min(eval_old.params[k] + shock[k], 
+                                               params[k][:ub]))
+        else 
+            algo.current_param[ch][k] = eval_old.params[k]
+        end
+    end
+end  
 
 # save algo chains component-wise to HDF5 file
 function save(algo::MAlgoABCPT, filename::AbstractString)
