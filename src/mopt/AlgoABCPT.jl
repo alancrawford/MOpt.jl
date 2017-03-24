@@ -402,7 +402,7 @@ function drawParamGrp(algo::MOpt.MAlgoABCPT)
     n=rand(1:length(algo["param_grps"]))
     par_to_sample = Dict()
     for k in keys(algo.m.params_to_sample)
-        if contains(string(k),algo["param_grps"][n])
+        if in(k,algo["param_grps"][n])
             par_to_sample[k] = algo.m.params_to_sample[k]
         end
     end
