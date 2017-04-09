@@ -198,7 +198,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             elseif  prob==1.0                                    # If obj fun of candidate draw is better old accept wp 1 
                 ACC = true
             else                                                # If obj fun of candidate draw worse then old ... 
-                ACC = eta > rand()                              # Accept prob > draw from Unif[0,1]
+                ACC = prob > rand()                              # Accept prob > draw from Unif[0,1]
             end
         end
 
