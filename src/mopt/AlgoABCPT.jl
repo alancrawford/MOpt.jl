@@ -185,7 +185,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             prob = 1.0
             ACC = true
             appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
-            algo.MChains[ch].infos[i,:init_id] = ch
+            algo.MChains[ch].infos[algo.i,:init_id] = ch
         else
             
             eval_old = getEval(algo.MChains[ch],algo.i-1)       # Read in previous Eval in chain
@@ -202,7 +202,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             end
 
             # Insert Chain ID as it was before
-            algo.MChains[ch].infos[i,:init_id] = algo.MChains[ch].infos[i-1,:init_id]
+            algo.MChains[ch].infos[algo.i,:init_id] = algo.MChains[ch].infos[algo.i-1,:init_id]
         end
 
         # append last accepted value
