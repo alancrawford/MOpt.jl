@@ -32,7 +32,7 @@ type ABCPTChain <: AbstractChain
     F          :: LinAlg.Cholesky{Float64,Matrix{Float64}}  # Current estimate of Cholesky decomp of covariance within chain: Σ = F[:L]*F[:L]' = F[:U]'*F[:U]
 
     function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemp)
-        infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), exchanged_with=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
+        infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), init_id=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
         parameters = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ps2s_names(MProb)))))
         moments    = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ms_names(MProb)))))
         par_nms    = sort(Symbol[ Symbol(x) for x in ps_names(MProb) ])
@@ -185,12 +185,12 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             prob = 1.0
             ACC = true
             appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+            algo.MChains[ch].infos[i,:init_id] = ch
         else
             
             eval_old = getEval(algo.MChains[ch],algo.i-1)       # Read in previous Eval in chain
             ΔV = EV[ch].value - eval_old.value
             algo.MChains[ch].infos[algo.i,:perc_new_old] = ΔV / abs(eval_old.value)
-
             prob = min(1.0,make_π(ΔV,algo.MChains[ch].tempering))         
             if EV[ch].value > algo.MChains[ch].dist_tol         # If not within tolerance for chain, reject wp 1. If pass here, then criteria met and do MH, Could turn this off to increase likelihood of acceptance.... 
                 prob = 0.
@@ -200,6 +200,9 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             else                                                # If obj fun of candidate draw worse then old ... 
                 ACC = prob > rand()                              # Accept prob > draw from Unif[0,1]
             end
+
+            # Insert Chain ID as it was before
+            algo.MChains[ch].infos[i,:init_id] = algo.MChains[ch].infos[i-1,:init_id]
         end
 
         # append last accepted value
@@ -208,6 +211,7 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         else
             appendEval!(algo.MChains[ch],eval_old,ACC,prob)
         end
+
 
         # Random Walk Adaptations
         rwAdapt!(algo, prob, ch)
@@ -310,13 +314,17 @@ function swapRows!(algo::MAlgoABCPT,pair::Pair,i::Int)
     e1 = getEval(algo.MChains[pair.first] ,i)
     e2 = getEval(algo.MChains[pair.second],i)
 
+    # Initial ID instead of exchanging
+    init_id1 = algo.MChains[pair.first].infos[i,:init_id]
+    init_id2 = algo.MChains[pair.second].infos[i,:init_id]
+
     # swap
     appendEval!(algo.MChains[pair.first  ],e2)
     appendEval!(algo.MChains[pair.second ],e1)
 
     # make a note in infos
-    algo.MChains[pair.first].infos[i,:exchanged_with] = pair.second
-    algo.MChains[pair.second].infos[i,:exchanged_with] = pair.first
+    algo.MChains[pair.first].infos[i,:init_id] = init_id2
+    algo.MChains[pair.second].infos[i,:init_id] = init_id1
 
 end
 
