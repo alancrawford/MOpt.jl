@@ -241,14 +241,14 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     else
         # Update mu
         algo.MChains[ch].mu +=  step * (Xtilde - algo.MChains[ch].mu)
-
-        # Update acceptance rate
-        algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
-
-        # Reporting
-        algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-        algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
     end
+
+    # Update acceptance rate
+    algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+    
+    # Reporting
+    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
 end
 
 # N randonly chosen pairs with replacement - this is BGP
@@ -360,10 +360,10 @@ function getNewCandidates!(algo::MAlgoABCPT)
 
     # update chain by chain
     for ch in 1:algo["N"]
-        # constraint the shock_sd: 95% conf interval should not exceed overall param interval width 
-        σ = sqrt(diag(algo.MChains[ch].F[:L]*algo.MChains[ch].F[:L]'))
-        shock_ub = log([ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2 * σ))
-        algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
+        # constrain the shock_sd: 95% conf interval should not exceed overall param interval width 
+        #σ = sqrt(diag(algo.MChains[ch].F[:L]*algo.MChains[ch].F[:L]'))
+        #shock_ub = log([ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2 * σ))
+        #algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
 
         # shock parameters on chain index ch
         shock = exp(algo.MChains[ch].shock_sd).*algo.MChains[ch].F[:L] *randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
