@@ -230,7 +230,7 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
-    LinAlg.lowrankupdate!(algo.MChains[ch].F, sqrt(step)*(Xtilde - algo.MChains[ch].mu))
+    LinAlg.lowrankupdate!(algo.MChains[ch].F, step*(Xtilde - algo.MChains[ch].mu))
   
     # Update mu
     algo.MChains[ch].mu +=  step * (Xtilde - algo.MChains[ch].mu)
