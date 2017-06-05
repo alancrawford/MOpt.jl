@@ -230,18 +230,10 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
-    if algo.i>1
-        LinAlg.lowrankupdate!(algo.MChains[ch].F, Xtilde - algo.MChains[ch].mu)
-    end
-
-    # Update Mean of Parameters 
-    if algo.i==1
-        algo.MChains[ch].mu = Xtilde
-        algo.MChains[ch].infos[algo.i,:accept_rate] = 1
-    else
-        # Update mu
-        algo.MChains[ch].mu +=  step * (Xtilde - algo.MChains[ch].mu)
-    end
+    LinAlg.lowrankupdate!(algo.MChains[ch].F, sqrt(step)*(Xtilde - algo.MChains[ch].mu))
+  
+    # Update mu
+    algo.MChains[ch].mu +=  step * (Xtilde - algo.MChains[ch].mu)
 
     # Update acceptance rate
     algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
