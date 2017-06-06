@@ -351,7 +351,7 @@ end
 function getNewCandidates!(algo::MAlgoABCPT)
 
     # Number of parameters
-    D = size(algo.MChains[1].F.factors,1)
+    D = size(algo.MChains[1].F,1)
 
     # update chain by chain
     for ch in 1:algo["N"]
@@ -361,7 +361,7 @@ function getNewCandidates!(algo::MAlgoABCPT)
         #algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
 
         # shock parameters on chain index ch
-        shock = exp(algo.MChains[ch].shock_sd).*algo.MChains[ch].F[:L] *randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+        shock = exp(algo.MChains[ch].shock_sd).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
         jumpParams!(algo,ch,shockd)                              # Add to parameters
     end
