@@ -71,7 +71,7 @@ type MAlgoABCPT <: MAlgo
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
         D = length(m.initial_value)
         for i in eachindex(chains)                                 # Fill-in chain covariances (Σ₀[ch] =[ 2.38²eye(D)/D ]^[1/T] - p16 BGP2012 example)  
-            chains[i].F = diagm((.1^(2/chains[i].tempering)/D)*ones(D) )
+            chains[i].F = eye(D)
         end
         swapdict = Dict{Int64, Vector{Int64}}()
         n = 0
