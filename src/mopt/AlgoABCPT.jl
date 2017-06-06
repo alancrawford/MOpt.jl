@@ -29,7 +29,7 @@ type ABCPTChain <: AbstractChain
     tempering  :: Float64 # tempering in update probability
     shock_sd   :: Float64 # sd of shock to covariance  
     mu         :: Vector{Float64}
-    F          :: LinAlg.Cholesky{Float64,Matrix{Float64}}  # Current estimate of Cholesky decomp of covariance within chain: Σ = F[:L]*F[:L]' = F[:U]'*F[:U]
+    F          :: Matrix{Float64}  # Current estimate of Cholesky decomp of covariance within chain: Σ = F[:L]*F[:L]' = F[:U]'*F[:U]
 
     function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemp)
         infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), init_id=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
@@ -42,7 +42,7 @@ type ABCPTChain <: AbstractChain
         names!(moments   ,[:chain_id;:iter; mom_nms])
         D = length(MProb.initial_value)
         mu = zeros(Float64, D)
-        F  = LinAlg.cholfact(eye(D))   # Just for initiation
+        F  = eye(D)   # Just for initiation
         
         return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,F)
     end
@@ -219,21 +219,24 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
     end
 end
 
-# Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
 
-# Andrieu and Thomas (2008) -> Key function. Need to look better at scaling adjustment
+# Rank-one-update with stochastic approximation : See p358 of Andrieu and Thoms (2008) 'A tutorial on adaptive MCMC', Journal of Statistical Computing
+rank1update(F::Matrix{Float64}, x::Vector{Float64}) = tril(inv(tril(F))*A_mul_Bt(x,x)*inv(tril(F)') - eye(length(x)))
+
+# Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
 function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     
     step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
+    dx = Xtilde - algo.MChains[ch].mu
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
-    LinAlg.lowrankupdate!(algo.MChains[ch].F, step*(Xtilde - algo.MChains[ch].mu))
+    algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx)
   
     # Update mu
-    algo.MChains[ch].mu +=  step * (Xtilde - algo.MChains[ch].mu)
+    algo.MChains[ch].mu +=  step * dx
 
     # Update acceptance rate
     algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
