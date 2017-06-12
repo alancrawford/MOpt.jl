@@ -368,7 +368,16 @@ function getNewCandidates!(algo::MAlgoABCPT)
 
 end
 
+# No boundaries
 function jumpParams!(algo::MAlgoABCPT,ch::Int,shock::Dict)
+    eval_old = getLastEval(algo.MChains[ch])
+    for k in keys(eval_old.params)
+        algo.current_param[ch][k] = eval_old.params[k] + shock[k]
+    end
+end 
+
+# With boundaries
+function jumpParamsBnd!(algo::MAlgoABCPT,ch::Int,shock::Dict)
     eval_old = getLastEval(algo.MChains[ch])
     for k in keys(eval_old.params)
         algo.current_param[ch][k] = max(algo.m.params_to_sample[k][:lb],
