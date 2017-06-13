@@ -4,13 +4,14 @@ module MOpt
 # Dependencies
 # ############
 
-using Distributions 
+using Distributions
 using Reexport
 #using Lumberjack
 using DataFrames
 import Base.show, Base.std, Base.LinAlg
 using GLM
 using StatsFuns
+using MultivariateStats 
 
 
 # exports: Types

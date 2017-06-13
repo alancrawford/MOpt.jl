@@ -2,6 +2,8 @@
 
 export jumpParams!
 
+typealias ScalarOrVec{T} Union{T,Vector{T}}
+
 #= 
 
 Adapted version Lacki and Miasojedow (2016) "State-dependent swap strategies and automatic 
@@ -26,13 +28,15 @@ type ABCPTChain <: AbstractChain
     moments_nms  ::Array{Symbol,1}  # names of moments
     params2s_nms ::Array{Symbol,1}  # DataFrame names of parameters to sample 
 
-    tempering  :: Float64 # tempering in update probability
-    shock_sd   :: Float64 # sd of shock to covariance  
+    tempering  :: Float64               # tempering in update probability
+    shock_wgts :: ScalarOrVec{Float64} 
+    shock_sd   :: ScalarOrVec{Float64}  # sd of shock to covariance  
+    shock_id   :: Int64
     mu         :: Vector{Float64}
     F          :: Matrix{Float64}  # Current estimate of Cholesky decomp of covariance within chain: Σ = F[:L]*F[:L]' = F[:U]'*F[:U]
 
     function ABCPTChain(id,MProb,L,temp,shock,dist_tol,reltemp)
-        infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), init_id=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [shock;zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
+        infos      = DataFrame(chain_id = [id for i=1:L], iter=1:L, evals = zeros(Float64,L), accept = zeros(Bool,L), status = zeros(Int,L), init_id=zeros(Int,L),prob=zeros(Float64,L),perc_new_old=zeros(Float64,L),accept_rate=zeros(Float64,L),shock_sd = [mean(shock);zeros(Float64,L-1)],eval_time=zeros(Float64,L),tempering=zeros(Float64,L))
         parameters = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ps2s_names(MProb)))))
         moments    = hcat(DataFrame(chain_id = [id for i=1:L], iter=1:L), convert(DataFrame,zeros(L,length(ms_names(MProb)))))
         par_nms    = sort(Symbol[ Symbol(x) for x in ps_names(MProb) ])
@@ -41,10 +45,11 @@ type ABCPTChain <: AbstractChain
         names!(parameters,[:chain_id;:iter; par2s_nms])
         names!(moments   ,[:chain_id;:iter; mom_nms])
         D = length(MProb.initial_value)
+        shock_wgts = length(shock)==1 ? 1.0 : ones(D)./D
         mu = zeros(Float64, D)
         F  = eye(D)   # Just for initiation
         
-        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock,mu,F)
+        return new(id,0,infos,parameters,moments,dist_tol,reltemp,par_nms,mom_nms,par2s_nms,temp,shock_wgts,shock,1,mu,F)
     end
 end
 
@@ -63,9 +68,10 @@ type MAlgoABCPT <: MAlgo
     function MAlgoABCPT(m::MProb,opts::Dict{String,Any}=Dict("N"=>3,"shock_sd"=>0.1,"maxiter"=>100,"maxtemp"=> 100,"min_disttol"=>1,"max_disttol"=>10))
 
         temps     = logspace(0,log10(opts["maxtemp"]),opts["N"])
-        shocksd   = opts["shock_sd"]*ones(Float64,opts["N"])  
+        shocksd   = [opts["shock_sd"] for i in 1:opts["N"]]  
         disttol   = logspace(log10(opts["min_disttol"]),log10(opts["max_disttol"]),opts["N"])           # In normalised resid_ssq think of disttol as (average num of sd away from moments)^2
-        reltemps = vcat(0, log(temps[2:end] - temps[1:end-1]))
+        reltemps = [0.]
+        append!(reltemps, log(temps[2:end] - temps[1:end-1]))
         chains = [ABCPTChain(i,m,opts["maxiter"],temps[i],shocksd[i],disttol[i],reltemps[i]) for i=1:opts["N"] ]
         # current param values
         cpar = [ deepcopy(m.initial_value) for i=1:opts["N"] ]
@@ -130,7 +136,7 @@ end
 # *) computes N new parameter vectors
 # *) applies a criterion to accept/reject any new params
 # *) stores the result in chains
-function computeNextIteration!( algo::MAlgoABCPT )
+function computeNextIteration!( algo::MAlgoABCPT, mcm::Dict )
     # here is the meat of your algorithm:
     # how to go from p(t) to p(t+1) ?
     # how to go from p(t) to p(t+1) ?
@@ -144,9 +150,14 @@ function computeNextIteration!( algo::MAlgoABCPT )
 
     # New Candidates
     # --------------
-    if algo.i > 1
-        getNewCandidates!(algo)     # Return a vector of parameters dicts in algo.current_param
-        #getNewCandidatesGrp!(algo)     # Use this function to sample subsets of parameters holding others fixed
+    if algo.i > 1 
+        if algo["mcdraws"]==:GLOBAL
+            MOpt.getNewCandidates!(algo)               # Return a vector of parameters dicts in algo.current_param
+        elseif algo["mcdraws"]==:COMPWISE
+            ρbar = MOpt.getNewCandidatesCompWise!(algo)       # Return a vector of parameters dicts in algo.current_param
+        elseif algo["mcdraws"]==:PPCA
+            ρbar = MOpt.getNewCandidatesPPCA!(algo,algo["ppca_method"])       # Return a vector of parameters dicts in algo.current_param
+        end
     end
 
     # evaluate objective on all chains
@@ -171,6 +182,51 @@ end
 
 # Density for MCMC
 make_π(V::Float64,T::Float64) = exp(-V/T)
+
+# notice: higher tempering draws candiates further spread out,
+# but accepts lower function values with lower probability
+function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval},weights::Vector{Float64})
+    for ch in eachindex(EV)
+        
+        # Bind variable to prob and ACC : to be updated by Accept / Reject
+        prob = 1.0
+        ACC = true
+        # Accept/Reject
+        if algo.i == 1                                          # Always accept first iteration as algorithm being initiated 
+            prob = 1.0
+            ACC = true
+            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+            algo.MChains[ch].infos[algo.i,:init_id] = ch
+        else
+            
+            eval_old = getEval(algo.MChains[ch],algo.i-1)       # Read in previous Eval in chain
+            ΔV = EV[ch].value - eval_old.value
+            algo.MChains[ch].infos[algo.i,:perc_new_old] = ΔV / abs(eval_old.value)
+            prob = min(1.0,make_π(ΔV,algo.MChains[ch].tempering))         
+            if EV[ch].value > algo.MChains[ch].dist_tol         # If not within tolerance for chain, reject wp 1. If pass here, then criteria met and do MH, Could turn this off to increase likelihood of acceptance.... 
+                prob = 0.
+                ACC = false
+            elseif  prob==1.0                                    # If obj fun of candidate draw is better old accept wp 1 
+                ACC = true
+            else                                                # If obj fun of candidate draw worse then old ... 
+                ACC = prob > rand()                              # Accept prob > draw from Unif[0,1]
+            end
+
+            # Insert Chain ID as it was before
+            algo.MChains[ch].infos[algo.i,:init_id] = algo.MChains[ch].infos[algo.i-1,:init_id]
+        end
+
+        # append last accepted value
+        if ACC
+            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
+        else
+            appendEval!(algo.MChains[ch],eval_old,ACC,prob)
+        end
+
+        # Random Walk Adaptations
+        rwAdapt!(algo, prob, ch, weights)
+    end
+end
 
 # notice: higher tempering draws candiates further spread out,
 # but accepts lower function values with lower probability
@@ -212,10 +268,8 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
             appendEval!(algo.MChains[ch],eval_old,ACC,prob)
         end
 
-
         # Random Walk Adaptations
         rwAdapt!(algo, prob, ch)
- 
     end
 end
 
@@ -244,6 +298,29 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Reporting
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
     algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
+end
+
+# Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
+function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
+    
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+
+    # Get value of accepted (i.e. old or new) parameters in chain after MH
+    Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
+    dx = Xtilde - algo.MChains[ch].mu
+
+    # Get Cholesky Factorisation of Covariance matrix (before update mu)
+    algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx)
+  
+    # Update mu
+    algo.MChains[ch].mu +=  step * dx
+
+    # Update acceptance rate
+    algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+    
+    # Reporting
+    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+    algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
 end
 
 # N randonly chosen pairs with replacement - this is BGP
@@ -346,7 +423,6 @@ function tempAdapt!(algo::MAlgoABCPT)
     end    
 end
 
-
 # function getNewCandidates!
 function getNewCandidates!(algo::MAlgoABCPT)
 
@@ -355,11 +431,6 @@ function getNewCandidates!(algo::MAlgoABCPT)
 
     # update chain by chain
     for ch in 1:algo["N"]
-        # constrain the shock_sd: 95% conf interval should not exceed overall param interval width 
-        #σ = sqrt(diag(algo.MChains[ch].F[:L]*algo.MChains[ch].F[:L]'))
-        #shock_ub = log([ (algo.m.params_to_sample[p][:ub] - algo.m.params_to_sample[p][:lb]) for p in ps2s_names(algo) ] ./ (1.96 * 2 * σ))
-        #algo.MChains[ch].shock_sd  = min(algo.MChains[ch].shock_sd , shock_ub)
-
         # shock parameters on chain index ch
         shock = exp(algo.MChains[ch].shock_sd).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
@@ -385,6 +456,82 @@ function jumpParamsBnd!(algo::MAlgoABCPT,ch::Int,shock::Dict)
                                                algo.m.params_to_sample[k][:ub]))
     end
 end                                                
+
+get_eigs(W::Matrix{Float64}) = svdvals(W).^2
+
+function draw_from_ppca(M::MultivariateStats.PPCA{Float64}) 
+    W = MultivariateStats.loadings(M)     # Loadings of PPCA model
+    s = svdvals(W)
+    ρ = s.^2    # U,S,V = svd(W) -> U are PC, S are sqrt of eigenvalues since derived from centered data
+    l = rand(Distributions.Categorical(ρ/sum(ρ)))
+    return ρ/sum(ρ), l, s[l], W[:,l]
+end
+
+
+# function getNewCandidates!
+function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
+
+    # Number of parameters
+    D = size(algo.MChains[1].F,1)
+
+    # update chain by chain
+    for ch in 1:algo["N"]
+
+        S = A_mul_Bt(algo.MChains[ch].F,algo.MChains[ch].F)
+        if method==:em
+             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
+        elseif method==:bayes
+             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
+        else 
+            println("Error: option for online PPCA")
+        end
+
+        # shock parameters on chain index ch
+        (ρbar,l_id,σ,w) = draw_from_ppca(M)
+        λ = exp(algo.MChains[ch].shock_sd[l_id])                # Scaling
+        shock = λ*σ*randn()*w                                   # Vector - shock
+        shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
+        
+        eval_old = getLastEval(algo.MChains[ch])
+        for (n,k) in enumerate(keys(eval_old.params))
+            algo.current_param[ch][k] = n==l_id ? eval_old.params[k] + shockd[k] : eval_old.params[k]
+        end
+
+        # Records which component changes
+        algo.MChains[ch].shock_id = l_id
+        fill!(algo.MChains[ch].shock_wgts,0.)
+        for (n,k) in enumerate(ρbar)
+            algo.MChains[ch].shock_wgts[n] = k
+        end
+    end
+end
+
+
+# function getNewCandidates!
+function getNewCandidatesCompWise!(algo::MAlgoABCPT)
+
+   # Number of parameters
+    D = size(algo.MChains[1].F,1)
+
+    # update chain by chain
+    for ch in 1:algo["N"]
+
+        # shock parameters on chain index ch
+        l_id = rand(1:D)                            # Which component changing
+        λ = exp(algo.MChains[ch].shock_sd[l_id])    # Scaling of chosen component
+        S = A_mul_Bt(algo.MChains[ch].F,algo.MChains[ch].F)
+        σ = sqrt(S[l_id,l_id])
+
+        eval_old = getLastEval(algo.MChains[ch])
+        for (n,k) in enumerate(keys(eval_old.params))
+            algo.current_param[ch][k] = n==l_id ? eval_old.params[k] + λ*σ*randn() : eval_old.params[k]
+        end
+
+        # Records which component changes
+        algo.MChains[ch].shock_id = l_id
+        fill!(algo.MChains[ch].shock_wgts,1/D)
+    end
+end
 
 # save algo chains component-wise to HDF5 file
 function save(algo::MAlgoABCPT, filename::AbstractString)
