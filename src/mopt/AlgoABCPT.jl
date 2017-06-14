@@ -491,13 +491,9 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
         λ = exp(algo.MChains[ch].shock_sd[l_id])                # Scaling
         shock = λ*σ*randn()*w                                   # Vector - shock
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
-        
-        eval_old = getLastEval(algo.MChains[ch])
-        for (n,k) in enumerate(keys(eval_old.params))
-            algo.current_param[ch][k] = n==l_id ? eval_old.params[k] + shockd[k] : eval_old.params[k]
-        end
+        jumpParams!(algo,ch,shockd)                              # Add to parameters
 
-        # Records which component changes
+        # Records which principal component changes
         algo.MChains[ch].shock_id = l_id
         fill!(algo.MChains[ch].shock_wgts,0.)
         for (n,k) in enumerate(ρbar)
@@ -524,7 +520,11 @@ function getNewCandidatesCompWise!(algo::MAlgoABCPT)
 
         eval_old = getLastEval(algo.MChains[ch])
         for (n,k) in enumerate(keys(eval_old.params))
-            algo.current_param[ch][k] = n==l_id ? eval_old.params[k] + λ*σ*randn() : eval_old.params[k]
+            if n==l_id 
+                algo.current_param[ch][k] = eval_old.params[k] + λ*σ*randn()
+            else 
+                algo.current_param[ch][k] =  eval_old.params[k]
+            end
         end
 
         # Records which component changes
