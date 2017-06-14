@@ -479,9 +479,9 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
 
         S = A_mul_Bt(algo.MChains[ch].F,algo.MChains[ch].F)
         if method==:em
-             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
+             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"]) 
         elseif method==:bayes
-             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
+             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"])
         else 
             println("Error: option for online PPCA")
         end
