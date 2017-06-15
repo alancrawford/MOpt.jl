@@ -185,51 +185,6 @@ make_π(V::Float64,T::Float64) = exp(-V/T)
 
 # notice: higher tempering draws candiates further spread out,
 # but accepts lower function values with lower probability
-function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval},weights::Vector{Float64})
-    for ch in eachindex(EV)
-        
-        # Bind variable to prob and ACC : to be updated by Accept / Reject
-        prob = 1.0
-        ACC = true
-        # Accept/Reject
-        if algo.i == 1                                          # Always accept first iteration as algorithm being initiated 
-            prob = 1.0
-            ACC = true
-            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
-            algo.MChains[ch].infos[algo.i,:init_id] = ch
-        else
-            
-            eval_old = getEval(algo.MChains[ch],algo.i-1)       # Read in previous Eval in chain
-            ΔV = EV[ch].value - eval_old.value
-            algo.MChains[ch].infos[algo.i,:perc_new_old] = ΔV / abs(eval_old.value)
-            prob = min(1.0,make_π(ΔV,algo.MChains[ch].tempering))         
-            if EV[ch].value > algo.MChains[ch].dist_tol         # If not within tolerance for chain, reject wp 1. If pass here, then criteria met and do MH, Could turn this off to increase likelihood of acceptance.... 
-                prob = 0.
-                ACC = false
-            elseif  prob==1.0                                    # If obj fun of candidate draw is better old accept wp 1 
-                ACC = true
-            else                                                # If obj fun of candidate draw worse then old ... 
-                ACC = prob > rand()                              # Accept prob > draw from Unif[0,1]
-            end
-
-            # Insert Chain ID as it was before
-            algo.MChains[ch].infos[algo.i,:init_id] = algo.MChains[ch].infos[algo.i-1,:init_id]
-        end
-
-        # append last accepted value
-        if ACC
-            appendEval!(algo.MChains[ch],EV[ch],ACC,prob)
-        else
-            appendEval!(algo.MChains[ch],eval_old,ACC,prob)
-        end
-
-        # Random Walk Adaptations
-        rwAdapt!(algo, prob, ch, weights)
-    end
-end
-
-# notice: higher tempering draws candiates further spread out,
-# but accepts lower function values with lower probability
 function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
     for ch in eachindex(EV)
         
@@ -269,7 +224,11 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         end
 
         # Random Walk Adaptations
-        rwAdapt!(algo, prob, ch)
+        if algo["mc_update"]==:GLOBAL
+            MOpt.rwAdapt!(algo,prob,ch)
+        else 
+            MOpt.rwAdaptLocal!(algo,prob,ch)
+        end
     end
 end
 
@@ -293,11 +252,11 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     algo.MChains[ch].mu +=  step * dx
 
     # Update acceptance rate
-    algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+    algo.MChains[ch].shock_sd[1] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
     
     # Reporting
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
+    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd[1]
 end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
@@ -432,7 +391,7 @@ function getNewCandidates!(algo::MAlgoABCPT)
     # update chain by chain
     for ch in 1:algo["N"]
         # shock parameters on chain index ch
-        shock = exp(algo.MChains[ch].shock_sd).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+        shock = exp(algo.MChains[ch].shock_sd[1]).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
         jumpParams!(algo,ch,shockd)                              # Add to parameters
     end
@@ -462,9 +421,9 @@ get_eigs(W::Matrix{Float64}) = svdvals(W).^2
 function draw_from_ppca(M::MultivariateStats.PPCA{Float64}) 
     W = MultivariateStats.loadings(M)     # Loadings of PPCA model
     s = svdvals(W)
-    ρ = s.^2    # U,S,V = svd(W) -> U are PC, S are sqrt of eigenvalues since derived from centered data
-    l = rand(Distributions.Categorical(ρ/sum(ρ)))
-    return ρ/sum(ρ), l, s[l], W[:,l]
+    ρ = softmax(s.^2)    # U,S,V = svd(W) -> U are PC, S are sqrt of eigenvalues since derived from centered data
+    l = rand(Distributions.Categorical(ρ))
+    return ρ, l, s[l], W[:,l]
 end
 
 
