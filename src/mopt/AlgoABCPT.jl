@@ -252,7 +252,7 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     algo.MChains[ch].mu +=  step * dx
 
     # Update acceptance rate
-    algo.MChains[ch].shock_sd[1] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+    algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
     
     # Reporting
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
@@ -391,7 +391,7 @@ function getNewCandidates!(algo::MAlgoABCPT)
     # update chain by chain
     for ch in 1:algo["N"]
         # shock parameters on chain index ch
-        shock = exp(algo.MChains[ch].shock_sd[1]).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+        shock = exp(algo.MChains[ch].shock_sd).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
         jumpParams!(algo,ch,shockd)                              # Add to parameters
     end
@@ -442,7 +442,7 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
         elseif method==:bayes
              M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"])
         else 
-            println("Error: option for online PPCA")
+            println("Error: not an option for online PPCA")
         end
 
         # shock parameters on chain index ch
