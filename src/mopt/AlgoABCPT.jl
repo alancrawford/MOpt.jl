@@ -151,11 +151,11 @@ function computeNextIteration!( algo::MAlgoABCPT, mcm::Dict )
     # New Candidates
     # --------------
     if algo.i > 1 
-        if algo["mcdraws"]==:GLOBAL
+        if algo["mc_update"]==:GLOBAL
             MOpt.getNewCandidates!(algo)               # Return a vector of parameters dicts in algo.current_param
-        elseif algo["mcdraws"]==:COMPWISE
+        elseif algo["mc_update"]==:COMPWISE
             ρbar = MOpt.getNewCandidatesCompWise!(algo)       # Return a vector of parameters dicts in algo.current_param
-        elseif algo["mcdraws"]==:PPCA
+        elseif algo["mc_update"]==:PPCA
             ρbar = MOpt.getNewCandidatesPPCA!(algo,algo["ppca_method"])       # Return a vector of parameters dicts in algo.current_param
         end
     end
@@ -229,6 +229,16 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         else 
             MOpt.rwAdaptLocal!(algo,prob,ch)
         end
+
+        # Reporting
+        if algo["mc_update"]==:GLOBAL || algo.i<algo["start_local"]
+                algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+                algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd[1]
+        else 
+                algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+                algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
+        end
+
     end
 end
 
@@ -254,9 +264,6 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Update acceptance rate
     algo.MChains[ch].shock_sd[1] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
     
-    # Reporting
-    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd[1]
 end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
@@ -277,10 +284,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Update acceptance rate
     algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
     
-    # Reporting
-    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-    algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
-end
+ end
 
 # N randonly chosen pairs with replacement - this is BGP
 function exchangeMovesRA!(algo::MAlgoABCPT)
