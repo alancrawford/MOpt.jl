@@ -232,12 +232,13 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
 
         # Reporting
         if algo["mc_update"]==:GLOBAL || algo.i<algo["start_local"]
-                algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-                algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd[1]
+            algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+            algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd[1]
         else 
-                algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-                algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
+            algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+            algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
         end
+
 
     end
 end
