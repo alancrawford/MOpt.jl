@@ -398,7 +398,7 @@ function getNewCandidates!(algo::MAlgoABCPT)
         # shock parameters on chain index ch
         shock = exp(algo.MChains[ch].shock_sd[1]).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
-        jumpParams!(algo,ch,shockd)                              # Add to parameters
+        jumpParamsBnd!(algo,ch,shockd)                              # Add to parameters
     end
 
 end
@@ -455,7 +455,7 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
         λ = exp(algo.MChains[ch].shock_sd[l_id])                # Scaling
         shock = λ*σ*randn()*w                                   # Vector - shock
         shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
-        jumpParams!(algo,ch,shockd)                              # Add to parameters
+        jumpParamsBnd!(algo,ch,shockd)                              # Add to parameters
 
         # Records which principal component changes
         algo.MChains[ch].shock_id = l_id
@@ -485,7 +485,9 @@ function getNewCandidatesCompWise!(algo::MAlgoABCPT)
         eval_old = getLastEval(algo.MChains[ch])
         for (n,k) in enumerate(keys(eval_old.params))
             if n==l_id 
-                algo.current_param[ch][k] = eval_old.params[k] + λ*σ*randn()
+                algo.current_param[ch][k] = max(algo.m.params_to_sample[k][:lb], 
+                                                min(eval_old.params[k] + λ*σ*randn(),
+                                                    algo.m.params_to_sample[k][:ub]))
             else 
                 algo.current_param[ch][k] =  eval_old.params[k]
             end
