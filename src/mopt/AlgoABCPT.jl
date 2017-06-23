@@ -226,8 +226,8 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
         # Random Walk Adaptations
         if algo["mc_update"]==:GLOBAL
             MOpt.rwAdapt!(algo,prob,ch)
-            algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-            algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd            
+            #algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+            #algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd            
         else 
             MOpt.rwAdaptLocal!(algo,prob,ch)
             algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
@@ -240,6 +240,52 @@ end
 
 # Rank-one-update with stochastic approximation : See p358 of Andrieu and Thoms (2008) 'A tutorial on adaptive MCMC', Journal of Statistical Computing
 rank1update(F::Matrix{Float64}, x::Vector{Float64}) = tril(inv(tril(F))*A_mul_Bt(x,x)*inv(tril(F)') - eye(length(x)))
+
+
+# Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
+function rwAdapt!(algo::MAlgoABCPT, ch::Int64)
+    
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+
+    # Get value of accepted (i.e. old or new) parameters in chain after MH
+    Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
+    dx = Xtilde - algo.MChains[ch].mu
+
+    # Get Cholesky Factorisation of Covariance matrix (before update mu)
+    algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx)
+  
+    # Update mu
+    algo.MChains[ch].mu +=  step * dx
+
+    # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
+
+    #algo.MChains[ch].infos[algo.i,:accept_rate] = 0.9*algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1*algo.MChains[ch].infos[algo.i,:accept]
+    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+    algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
+    
+end
+
+# Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
+function rwAdaptLocal!(algo::MAlgoABCPT, ch::Int64)
+    
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+
+    # Get value of accepted (i.e. old or new) parameters in chain after MH
+    Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
+    dx = Xtilde - algo.MChains[ch].mu
+
+    # Get Cholesky Factorisation of Covariance matrix (before update mu)
+    algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx)
+  
+    # Update mu
+    algo.MChains[ch].mu +=  step * dx
+
+    # Update acceptance rate THIS IS NOT WORKING - I NEED AR FOREACH PARAM - MORE INFRESTRUCTURE NEEDED
+    #algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+    algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
+    
+ end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
 function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
@@ -255,6 +301,11 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
   
     # Update mu
     algo.MChains[ch].mu +=  step * dx
+
+    # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
+    algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+    #algo.MChains[ch].infos[algo.i,:accept_rate] = 0.9*algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1*algo.MChains[ch].infos[algo.i,:accept]
+    algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
 
     # Update acceptance rate
     algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
