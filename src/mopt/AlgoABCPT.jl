@@ -225,13 +225,15 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
 
         # Random Walk Adaptations
         if algo["mc_update"]==:GLOBAL
-            MOpt.rwAdapt!(algo,prob,ch)
+            rwAdapt!(algo,ch)        
+            #MOpt.rwAdapt!(algo,prob,ch)
             #algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
             #algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd            
         else 
-            MOpt.rwAdaptLocal!(algo,prob,ch)
-            algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
-            algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
+            rwAdaptLocal!(algo,ch)
+            #MOpt.rwAdaptLocal!(algo,prob,ch)
+            #algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
+            #algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
         end
 
     end
