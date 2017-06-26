@@ -264,7 +264,7 @@ function rwAdapt!(algo::MAlgoABCPT, ch::Int64)
     #algo.MChains[ch].infos[algo.i,:accept_rate] = 0.9*algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1*algo.MChains[ch].infos[algo.i,:accept]
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
     algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
-    
+    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
 end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
@@ -282,7 +282,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, ch::Int64)
     # Update mu
     algo.MChains[ch].mu +=  step * dx
 
-    # Update acceptance rate THIS IS NOT WORKING - I NEED AR FOREACH PARAM - MORE INFRESTRUCTURE NEEDED
+    # Update acceptance rate THIS IS NOT WORKING - I NEED AR FOREACH PARAM - MORE INFRASTRUCTURE NEEDED
     #algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
     algo.MChains[ch].infos[algo.i,:shock_sd] = dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
@@ -307,11 +307,12 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
     #algo.MChains[ch].infos[algo.i,:accept_rate] = 0.9*algo.MChains[ch].infos[algo.i-1,:accept_rate] + 0.1*algo.MChains[ch].infos[algo.i,:accept]
-    algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
+    #algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
 
     # Update acceptance rate
     algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
-    
+    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
+
 end
 
 # Random Walk adaptations: see Lacki and Miasojedow (2016) "State-dependent swap strategies ...."
