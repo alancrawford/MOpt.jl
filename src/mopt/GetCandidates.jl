@@ -50,7 +50,8 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
     D =  length(ps2s_names(algo.m))
 
     if algo["CommonCov"]
-        S = A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
+        S = haskey(algo.opts,"ρ") ? A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F) + algo["ρ"]*eye(D) :
+                                    A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
         if method==:em
              M = MultivariateStats.ppcaem(S, algo.MChains[1].mu, D; maxoutdim = algo["maxoutdim"]) 
         elseif method==:bayes
@@ -77,8 +78,8 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
     else 
         # update chain by chain
         for ch in 1:algo["N"]
-
-            S = A_mul_Bt(algo.MChains[ch].F,algo.MChains[ch].F)
+            S = haskey(algo.opts,"ρ") ? A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F) + algo["ρ"]*eye(D) :
+                                    A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
             if method==:em
                  M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"]) 
             elseif method==:bayes

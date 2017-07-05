@@ -100,32 +100,20 @@ end
 
 function do_rwAdapt!(algo::MAlgoABCPT,pvec::Vector{Float64})
     if algo["mc_update"]==:GLOBAL 
-        if !haskey(algo.opts,"ρ") && !algo["CommonCov"]
+        if algo["CommonCov"]            
+            rwAdapt!(algo,pvec)
+        else
             @inbounds for ch in 1:algo["N"]        
                 rwAdapt!(algo,pvec[ch],ch)
             end
-        elseif haskey(algo.opts,"ρ") && !algo["CommonCov"]
-            @inbounds for ch in 1:algo["N"]        
-                rwAdapt!(algo,pvec[ch],ch,algo["ρ"])
-            end        
-        elseif !haskey(algo.opts,"ρ") && algo["CommonCov"]
-            rwAdapt!(algo,pvec)
-        else haskey(algo.opts,"ρ") && algo["CommonCov"]
-            rwAdapt!(algo,pvec,algo["ρ"])
         end
     else
-        if !haskey(algo.opts,"ρ") && !algo["CommonCov"]
+        if algo["CommonCov"]            
+            rwAdaptLocal!(algo,pvec)
+        else
             @inbounds for ch in 1:algo["N"]        
                 rwAdaptLocal!(algo,pvec[ch],ch)
             end
-        elseif haskey(algo.opts,"ρ") && !algo["CommonCov"]
-            @inbounds for ch in 1:algo["N"]        
-                rwAdaptLocal!(algo,pvec[ch],ch,algo["ρ"])
-            end        
-        elseif !haskey(algo.opts,"ρ") && algo["CommonCov"]
-            rwAdaptLocal!(algo,pvec)
-        else haskey(algo.opts,"ρ") && algo["CommonCov"]
-            rwAdaptLocal!(algo,pvec,algo["ρ"])
         end
     end
 end
