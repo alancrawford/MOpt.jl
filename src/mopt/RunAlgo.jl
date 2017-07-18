@@ -118,3 +118,22 @@ function do_rwAdapt!(algo::MAlgoABCPT,pvec::Vector{Float64})
     end
 end
 
+function do_rwAdapt!(algo::MAlgoABCPT,pvec::Vector{Float64},ρ::Float64)
+    if algo["mc_update"]==:GLOBAL 
+        if algo["CommonCov"]            
+            rwAdapt!(algo,pvec,ρ)
+        else
+            @inbounds for ch in 1:algo["N"]        
+                rwAdapt!(algo,pvec[ch],ch,ρ)
+            end
+        end
+    else
+        if algo["CommonCov"]            
+            rwAdaptLocal!(algo,pvec,ρ)
+        else
+            @inbounds for ch in 1:algo["N"]        
+                rwAdaptLocal!(algo,pvec[ch],ch,ρ)
+            end
+        end
+    end
+end
