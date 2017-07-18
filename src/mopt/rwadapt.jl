@@ -232,7 +232,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, pvec::Vector{Float64},ρ::Float64)
     @inbounds for ch in 1:algo["N"]
         Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
         dx = Xtilde - algo.MChains[ch].mu
-        Σ += A_mul_Bt(dx,dx)/algo["N"]      # Cov matrix update 
+        #Σ += A_mul_Bt(dx,dx)/algo["N"]      # Cov matrix update 
         Δmu += dx/algo["N"]                 # Mean update
     end
 
