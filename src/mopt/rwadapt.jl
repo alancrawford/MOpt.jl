@@ -23,10 +23,11 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx)
-    lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
-    algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
-    
+    if algo.i > algo["TempAdapt"]
+        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
+        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
+    end
     # Update mu
     algo.MChains[ch].mu +=  step * dx
 
@@ -52,9 +53,11 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx,ρ)
-    lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-    algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
+    if algo.i > algo["TempAdapt"]
+        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])    
+    end
 
     # Update mu
     algo.MChains[ch].mu +=  step * dx
@@ -149,10 +152,11 @@ function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx)
-    lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
-    algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
-
+    if algo.i > algo["TempAdapt"]
+        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
+        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
+    end
     # Update mu
     algo.MChains[ch].mu +=  step * dx
 
@@ -176,10 +180,11 @@ function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Fl
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx,ρ)
-    lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-    algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) 
-    
+    if algo.i > algo["TempAdapt"]
+        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) 
+    end
     # Update mu
     algo.MChains[ch].mu +=  step * dx
 
