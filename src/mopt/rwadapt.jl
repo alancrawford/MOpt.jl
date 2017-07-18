@@ -24,7 +24,7 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx)
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(MChains[ch],lower_bound_index:algo.i)))
+    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
     
     # Update mu
@@ -53,7 +53,7 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx,ρ)
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
 
     # Update mu
@@ -87,7 +87,7 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
     # Read updates into chains
     step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(MChains[1:algo["N"]],lower_bound_index:algo.i)))
+    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i)))
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
 
     @inbounds for ch in 1:algo["N"]
@@ -119,7 +119,7 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     # Read updates into chains
     step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
 
     @inbounds for ch in 1:algo["N"]
@@ -150,7 +150,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx)
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(MChains[ch],lower_bound_index:algo.i)))
+    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
 
     # Update mu
@@ -177,7 +177,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Fl
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
     #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx,ρ)
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) 
     
     # Update mu
@@ -208,7 +208,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, pvec::Vector{Float64})
     # Read updates into chains
     step = (algo.i+1)^(-0.3)  # Declining step size over iterations
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(MChains[1:algo["N"]],lower_bound_index:algo.i)))
+    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i)))
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
 
     @inbounds for ch in 1:algo["N"]
@@ -239,7 +239,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, pvec::Vector{Float64},ρ::Float64)
     # Read updates into chains
     step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
     algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
 
     @inbounds for ch in 1:algo["N"]
