@@ -86,7 +86,7 @@ end
 # Temperature Adaption - note: use objective values after swapping 
 function tempAdapt!(algo::MAlgoABCPT)
 
-    step = (algo.i+1)^(-0.5)  # Declining step size over iterations
+    step = (algo.i+1)^(-0.3)  # Declining step size over iterations
 
     # Get adjustment for temperature of all but coldest chain
     for ch in 2:algo["N"]
