@@ -15,7 +15,7 @@ rank1update(F::Matrix{Float64}, Σ::Matrix{Float64}, Nx::Int64, ρ::Float64) = t
 function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     
     Nx = length(MOpt.ps2s_names(algo.m))
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -45,7 +45,7 @@ end
 function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64)
     
     Nx = length(MOpt.ps2s_names(algo.m))
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -88,7 +88,7 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
     Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i)))
 
@@ -120,7 +120,7 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
     Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
 
@@ -144,7 +144,7 @@ end
 function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     
     Nx = length(ps2s_names(algo.m))
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -172,7 +172,7 @@ end
 function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64)
     
     Nx = length(MOpt.ps2s_names(algo.m))
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -211,7 +211,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, pvec::Vector{Float64})
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
     Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i)))
 
@@ -242,7 +242,7 @@ function rwAdaptLocal!(algo::MAlgoABCPT, pvec::Vector{Float64},ρ::Float64)
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
     Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
 
