@@ -35,12 +35,15 @@ function getNewCandidatesBnd!(algo::MAlgoABCPT)
     for ch in 1:algo["N"]
         for zz in 1:algo["maxdrawiters"]
             # shock parameters on chain index ch
-            shock = exp(algo.MChains[ch].shock_sd[1]).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
+            shock = exp(algo.MChains[ch].shock_sd).*tril(algo.MChains[ch].F)*randn(D)    # Draw shocks scaled to ensure acceptance rate targeted at 0.234 (See Lacki and Meas)
             shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
             jumpParams!(algo,ch,shockd)                              # Add to parameters
             draw = [algo.current_param[ch][k] for (k,v) in algo.m.params_to_sample]
             all(draw.>lb) && all(draw.<ub) && break
-            if zz==algo["maxdrawiters"] 
+            if mod(zz,100)==0 
+                println("Reduced Shock SD on Chain $(ch) because not in bounds ")
+                algo.MChains[ch].shock_sd = log(0.9*exp(algo.MChains[ch].shock_sd))
+            elseif zz==algo["maxdrawiters"] 
                 println("Exceeded Maximum Number Draws on Chain $(ch) - Defaulted to previous draw")
                 shockd = Dict(zip(ps2s_names(algo) , zeros(D)))  
                 jumpParams!(algo,ch,shockd)
