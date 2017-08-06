@@ -92,11 +92,16 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
     
     if algo.i > algo["TempAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-        F = convert(Matrix,cholfact(Σ)[:L])
         for ch in 1:algo["N"]
-            algo.MChains[ch].F  = F 
+            if ch==1
+                S = convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))
+            else
+                S = [S; convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))]
+            end
         end
+        Σ = (1-ρ).*cov(S) + ρ.*eye(Nx)
+        F = convert(Matrix,cholfact(Σ)[:L])
+        for ch in 1:algo["N"] algo.MChains[ch].F  = F end
     end
     
     @inbounds for ch in 1:algo["N"]
@@ -116,6 +121,7 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     Δmu = zeros(Nx)      # Update for mu Matrix: pooling information across chains
     
     # Get value of accepted (i.e. old or new) parameters in chain after MH
+    S = []
     @inbounds for ch in 1:algo["N"]
         Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
         dx = Xtilde - algo.MChains[ch].mu
@@ -126,12 +132,18 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     if algo.i > algo["TempAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-        F = convert(Matrix,cholfact(Σ)[:L])
         for ch in 1:algo["N"]
-            algo.MChains[ch].F  = F 
+            if ch==1
+                S = convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))
+            else
+                S = [S; convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))]
+            end
         end
+        Σ = (1-ρ).*cov(S) + ρ.*eye(Nx)
+        F = convert(Matrix,cholfact(Σ)[:L])
+        for ch in 1:algo["N"] algo.MChains[ch].F  = F end
     end
+
     @inbounds for ch in 1:algo["N"]
         algo.MChains[ch].mu +=  step * Δmu
         algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
