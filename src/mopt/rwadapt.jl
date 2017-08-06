@@ -93,10 +93,11 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
     if algo.i > algo["TempAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
         Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-        for ch in 1:algo["N"] algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) end
+        F = convert(Matrix,cholfact(Σ)[:L])
     end
     
     @inbounds for ch in 1:algo["N"]
+        algo.MChains[ch].F = F
         algo.MChains[ch].mu +=  step * Δmu
         algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
         algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
@@ -124,9 +125,10 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     if algo.i > algo["TempAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
         Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-        for ch in 1:algo["N"] algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) end
+        F = convert(Matrix,cholfact(Σ)[:L]) 
     end
     @inbounds for ch in 1:algo["N"]
+        algo.MChains[ch].F = F
         algo.MChains[ch].mu +=  step * Δmu
         algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
         algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
