@@ -89,16 +89,17 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
 
     # Read updates into chains
     step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
-    lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i)))
-
+    
+    if algo.i > algo["TempAdapt"]
+        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+        for ch in 1:algo["N"] algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) end
+    end
+    
     @inbounds for ch in 1:algo["N"]
-        #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,Σ,Nx)
-        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
         algo.MChains[ch].mu +=  step * Δmu
         algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
         algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
-        #algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
         algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i  # Update acceptance rate
     end
      
@@ -115,18 +116,16 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     @inbounds for ch in 1:algo["N"]
         Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
         dx = Xtilde - algo.MChains[ch].mu
-        #Σ += A_mul_Bt(dx,dx)/algo["N"]      # Cov matrix update 
         Δmu += dx/algo["N"]                 # Mean update
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
-    lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-    Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[1:algo["N"]],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-
+    if algo.i > algo["TempAdapt"]
+        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+        for ch in 1:algo["N"] algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L]) end
+    end
     @inbounds for ch in 1:algo["N"]
-        #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,Σ,Nx,ρ)
-        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
         algo.MChains[ch].mu +=  step * Δmu
         algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
         algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
@@ -139,7 +138,7 @@ end
 
 # ----------- 2. Parameter specific scaling   ----------- #
 
-
+#=
 # a.i) Chain specific: Covariance and Scaling - NOT Regularised
 function rwAdaptLocal!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     
@@ -257,3 +256,4 @@ function rwAdaptLocal!(algo::MAlgoABCPT, pvec::Vector{Float64},ρ::Float64)
     end
 
  end
+ =#
