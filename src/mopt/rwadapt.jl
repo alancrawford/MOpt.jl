@@ -120,6 +120,7 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     end
 
     # Read updates into chains
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     if algo.i > algo["TempAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
         Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
