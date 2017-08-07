@@ -69,7 +69,8 @@ end
 
 # b.i) Common Covariance matrix across chains but separate scaling factor using prob of acceptance - NOT Regularised
 function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
-    
+    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+   
     Nx = length(MOpt.ps2s_names(algo.m))
     #Σ = zeros(Nx,Nx)     # Update for Covariance Matrix: pooling information across chains
     Δmu = zeros(Nx)      # Update for mu Matrix: pooling information across chains
@@ -83,7 +84,6 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
     
     if algo.i > algo["rwAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
@@ -111,6 +111,7 @@ end
 
 # b.ii) Common Covariance matrix across chains but separate scaling factor using prob of acceptance - Regularised
 function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
+    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
     
     Nx = length(MOpt.ps2s_names(algo.m))
     #Σ = zeros(Nx,Nx)     # Update for Covariance Matrix: pooling information across chains
@@ -125,7 +126,6 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
     end
 
     # Read updates into chains
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
     if algo.i > algo["rwAdapt"]
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
         for ch in 1:algo["N"]
