@@ -28,6 +28,7 @@ function getNewCandidatesBnd!(algo::MAlgoABCPT)
     # Number of parameters
     D = length(ps2s_names(algo.m))
 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     lb = [v[:lb] for (k,v) in algo.m.params_to_sample]
     ub = [v[:ub] for (k,v) in algo.m.params_to_sample]
 
@@ -42,7 +43,7 @@ function getNewCandidatesBnd!(algo::MAlgoABCPT)
             all(draw.>lb) && all(draw.<ub) && break
             if mod(zz,100)==0 
                 println("Reduced Shock SD on Chain $(ch) because not in bounds ")
-                algo.MChains[ch].shock_sd = log(0.9*exp(algo.MChains[ch].shock_sd))
+                algo.MChains[ch].shock_sd = log((1.-step)*exp(algo.MChains[ch].shock_sd))
             elseif zz==algo["maxdrawiters"] 
                 println("Exceeded Maximum Number Draws on Chain $(ch) - Defaulted to previous draw")
                 shockd = Dict(zip(ps2s_names(algo) , zeros(D)))  
