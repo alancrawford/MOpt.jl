@@ -31,18 +31,18 @@ type MProb
   # setup
   initial_value       :: Dict           # initial parameter value as a dict
   params_to_sample    :: Dict           # Dict with lower and upper bounds
-  objfunc             :: Function       # objective function
   objfunc_opts        :: Dict           # options passed to the objective function, e.g. printlevel
   moments             :: Dict           # a dictionary of data moments to track
+  W                   :: Matrix         # Optimal weighting matrix option
 
   # very simple constructor
   function MProb()
     this = new()
     this.initial_value       = Dict()
     this.params_to_sample    = Dict()
-    this.objfunc             = x -> x
     this.objfunc_opts        = Dict()
     this.moments             = Dict()
+    this.W                   = zeros(1,1)
     return(this)
   end
 
