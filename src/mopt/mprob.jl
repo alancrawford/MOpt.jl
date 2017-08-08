@@ -33,7 +33,7 @@ type MProb
   params_to_sample    :: Dict           # Dict with lower and upper bounds
   objfunc_opts        :: Dict           # options passed to the objective function, e.g. printlevel
   moments             :: Dict           # a dictionary of data moments to track
-  W                   :: Matrix         # Optimal weighting matrix option
+  invW                   :: Matrix         # Optimal weighting matrix option
 
   # very simple constructor
   function MProb()
@@ -42,7 +42,7 @@ type MProb
     this.params_to_sample    = Dict()
     this.objfunc_opts        = Dict()
     this.moments             = Dict()
-    this.W                   = zeros(1,1)
+    this.invW                   = zeros(1,1)
     return(this)
   end
 
