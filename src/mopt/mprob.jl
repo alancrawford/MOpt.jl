@@ -42,7 +42,7 @@ type MProb
     this.params_to_sample    = Dict()
     this.objfunc_opts        = Dict()
     this.moments             = Dict()
-    this.invW                   = zeros(1,1)
+    this.invW                = zeros(1,1)
     return(this)
   end
 
