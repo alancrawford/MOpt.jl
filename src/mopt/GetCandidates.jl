@@ -76,9 +76,9 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
     if algo["CommonCov"]
         S = A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
         if method==:em
-             M = MultivariateStats.ppcaem(S, algo.MChains[1].mu, D; maxoutdim = algo["maxoutdim"]) 
+             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
         elseif method==:bayes
-             M = MultivariateStats.bayespca(S, algo.MChains[1].mu, D; maxoutdim = algo["maxoutdim"])
+             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
         else 
             println("Error: not an option for online PPCA")
         end
@@ -92,7 +92,6 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
                 for (n,k) in enumerate(ρbar)
                     algo.MChains[ch].shock_wgts[n] = k
                 end
-
                 λ = exp(algo.MChains[ch].shock_sd[l_id])                # Scaling
                 shock = λ*σ*randn()*w                                   # Vector - shock
                 shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
@@ -158,9 +157,9 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
     if algo["CommonCov"]
         S = A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
         if method==:em
-             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"]) 
+             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
         elseif method==:bayes
-             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"])
+             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
         else 
             println("Error: not an option for online PPCA")
         end
@@ -185,9 +184,9 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
         for ch in 1:algo["N"]
             S = A_mul_Bt(algo.MChains[ch].F,algo.MChains[ch].F)
             if method==:em
-                 M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"]) 
+                 M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
             elseif method==:bayes
-                 M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"])
+                 M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
             else 
                 println("Error: not an option for online PPCA")
             end
