@@ -75,15 +75,15 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
     ub = [v[:ub] for (k,v) in algo.m.params_to_sample]
     if algo["CommonCov"]
         S = A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
-        if method==:em
-             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
-        elseif method==:bayes
-             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
-        else 
-            println("Error: not an option for online PPCA")
-        end
         # shock parameters on chain index ch
         for ch in 1:algo["N"]
+            if method==:em
+                 M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
+            elseif method==:bayes
+                 M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
+            else 
+                println("Error: not an option for online PPCA")
+            end
             @inbounds for zz in 1:algo["maxdrawiters"]
                 (ρbar,l_id,σ,w) = draw_from_ppca(M)
                 # Records which principal component changes
