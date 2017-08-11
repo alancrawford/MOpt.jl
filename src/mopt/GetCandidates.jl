@@ -86,6 +86,7 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
         for ch in 1:algo["N"]
             @inbounds for zz in 1:algo["maxdrawiters"]
                 (ρbar,l_id,σ,w) = draw_from_ppca(M)
+                algo.MChains[ch].shock_id = l_id
                 λ = exp(algo.MChains[ch].shock_sd[l_id])                # Scaling
                 shock = λ*σ*randn()*w                                   # Vector - shock
                 shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
@@ -103,7 +104,7 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
             end
 
             # Records which principal component changes
-            algo.MChains[ch].shock_id = l_id
+
             fill!(algo.MChains[ch].shock_wgts,0.)
             for (n,k) in enumerate(ρbar)
                 algo.MChains[ch].shock_wgts[n] = k

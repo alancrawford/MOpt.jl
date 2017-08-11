@@ -278,7 +278,7 @@ function getParamCovariance(algo::MAlgoBGP)
 	# return MVN
 end
 
-
+#=
 # function getNewCandidates!(algo::MAlgoBGP,MVN::MvNormal)
 function getNewCandidates!(algo::MAlgoBGP,VV::Matrix)
 
@@ -312,8 +312,8 @@ function getNewCandidates!(algo::MAlgoBGP,VV::Matrix)
 	end
 
 end
-
-
+=#
+#=
 function jumpParams!(algo::MAlgoBGP,ch::Int,shock::Dict)
 	eval_old = getLastEval(algo.MChains[ch])
 	for k in keys(eval_old.params)
@@ -322,7 +322,7 @@ function jumpParams!(algo::MAlgoBGP,ch::Int,shock::Dict)
 												algo.m.params_to_sample[k][:ub])
 	end
 end
-
+=#
 
 # save algo chains component-wise to HDF5 file
 function save(algo::MAlgoBGP, filename::AbstractString)

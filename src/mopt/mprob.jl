@@ -192,7 +192,7 @@ function show(io::IO,m::MProb)
   print(io,"\nMoment Table:\n")
   print(io,m.moments)
   print(io,"\n")
-  print(io,"\nobjective function: $(m.objfunc)\n\n")
+  #print(io,"\nobjective function: $(m.objfunc)\n\n")
   # print(io,"\nobjective function call: $(Expr(:call,m.objfunc,m.current_param,m.moments,m.moments_to_use))\n")
   # if !m.prepared
   #   print(io,"\ncall MoptPrepare(m) to setup cluster\n")
