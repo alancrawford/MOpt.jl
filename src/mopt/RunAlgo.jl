@@ -99,41 +99,21 @@ function doAcceptReject!(algo::MAlgoABCPT,EV::Array{Eval})
 end
 
 function do_rwAdapt!(algo::MAlgoABCPT,pvec::Vector{Float64})
-    if algo["mc_update"]==:GLOBAL 
-        if algo["CommonCov"]            
-            rwAdapt!(algo,pvec)
-        else
-            @inbounds for ch in 1:algo["N"]        
-                rwAdapt!(algo,pvec[ch],ch)
-            end
-        end
+    if algo["CommonCov"]            
+        rwAdapt!(algo,pvec)
     else
-        if algo["CommonCov"]            
-            rwAdaptLocal!(algo,pvec)
-        else
-            @inbounds for ch in 1:algo["N"]        
-                rwAdaptLocal!(algo,pvec[ch],ch)
-            end
+        @inbounds for ch in 1:algo["N"]        
+            rwAdapt!(algo,pvec[ch],ch)
         end
     end
 end
 
 function do_rwAdapt!(algo::MAlgoABCPT,pvec::Vector{Float64},ρ::Float64)
-    if algo["mc_update"]==:GLOBAL 
-        if algo["CommonCov"]            
-            rwAdapt!(algo,pvec,ρ)
-        else
-            @inbounds for ch in 1:algo["N"]        
-                rwAdapt!(algo,pvec[ch],ch,ρ)
-            end
-        end
+    if algo["CommonCov"]            
+        rwAdapt!(algo,pvec,ρ)
     else
-        if algo["CommonCov"]            
-            rwAdaptLocal!(algo,pvec,ρ)
-        else
-            @inbounds for ch in 1:algo["N"]        
-                rwAdaptLocal!(algo,pvec[ch],ch,ρ)
-            end
+        @inbounds for ch in 1:algo["N"]        
+            rwAdapt!(algo,pvec[ch],ch,ρ)
         end
     end
 end
