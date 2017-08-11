@@ -115,9 +115,9 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
         for ch in 1:algo["N"]
             S = A_mul_Bt(algo.MChains[ch].F,algo.MChains[ch].F)
             if method==:em
-                 M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"]) 
+                 M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D) 
             elseif method==:bayes
-                 M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"])
+                 M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D)
             else 
                 println("Error: not an option for online PPCA")
             end
@@ -158,9 +158,9 @@ function getNewCandidatesPPCA!(algo::MAlgoABCPT, method::Symbol)
     if algo["CommonCov"]
         S = A_mul_Bt(algo.MChains[1].F,algo.MChains[1].F)
         if method==:em
-             M = MultivariateStats.ppcaem(S, algo.MChains[1].mu, D; maxoutdim = algo["maxoutdim"]) 
+             M = MultivariateStats.ppcaem(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"]) 
         elseif method==:bayes
-             M = MultivariateStats.bayespca(S, algo.MChains[1].mu, D; maxoutdim = algo["maxoutdim"])
+             M = MultivariateStats.bayespca(S, algo.MChains[ch].mu, D; maxoutdim = algo["maxoutdim"])
         else 
             println("Error: not an option for online PPCA")
         end
