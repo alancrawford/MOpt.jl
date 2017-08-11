@@ -29,14 +29,20 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
         Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
         algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
-        algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.   
+        if algo["mc_update"]==:GLOBAL
+            algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+        else
+            algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)          
+        end
     end
 
     # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
    
     #algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
-    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
+    algo.MChains[ch].infos[algo.i,:shock_sd] = 
+            algo["mc_update"]==:GLOBAL ? algo.MChains[ch].shock_sd :
+                            dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
 
 end
 
@@ -56,16 +62,24 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64
         lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
         Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
         algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])    
-        algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+        if algo["mc_update"]==:GLOBAL
+            algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+        else
+            algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)          
+        end
+
     end
 
     # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
    
     # Update acceptance rate
-    algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
+    algo.MChains[ch].infos[algo.i,:shock_sd] = 
+        algo["mc_update"]==:GLOBAL ? algo.MChains[ch].shock_sd :
+                            dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
 
 end
+
 
 # b.i) Common Covariance matrix across chains but separate scaling factor using prob of acceptance - NOT Regularised
 function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
@@ -96,17 +110,25 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
         end
         Σ = (1-ρ).*cov(S) + ρ.*eye(Nx)
         F = convert(Matrix,cholfact(Σ)[:L])
-        for ch in 1:algo["N"] 
-            algo.MChains[ch].F  = F 
-            algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
+        if algo["mc_update"]==:GLOBAL
+            for ch in 1:algo["N"]   
+                algo.MChains[ch].F  = F
+                algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)  
+            end
+        else
+            for ch in 1:algo["N"]   
+                algo.MChains[ch].F  = F
+                algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (pvec[ch] - 0.234) 
+            end
         end
     end
-    
+
     @inbounds for ch in 1:algo["N"]
-        algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
+        algo.MChains[ch].infos[algo.i,:shock_sd] = 
+                    algo["mc_update"]==:GLOBAL ? algo.MChains[ch].shock_sd :
+                            dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
         algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i  # Update acceptance rate
-    end
-     
+    end             
 end
 
 # b.ii) Common Covariance matrix across chains but separate scaling factor using prob of acceptance - Regularised
@@ -137,19 +159,25 @@ function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
         end
         Σ = (1-ρ).*cov(S) + ρ.*eye(Nx)
         F = convert(Matrix,cholfact(Σ)[:L])
-        for ch in 1:algo["N"] 
-            algo.MChains[ch].F  = F
-            algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)  
+        if algo["mc_update"]==:GLOBAL
+            for ch in 1:algo["N"]   
+                algo.MChains[ch].F  = F
+                algo.MChains[ch].shock_sd += step * (pvec[ch] - 0.234)  
+            end
+        else
+            for ch in 1:algo["N"]   
+                algo.MChains[ch].F  = F
+                algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (pvec[ch] - 0.234) 
+            end
         end
     end
 
     @inbounds for ch in 1:algo["N"]
-        # Quite a simple update - maybe be slow. See AT 2008 sec 5.
-        algo.MChains[ch].infos[algo.i,:shock_sd] = algo.MChains[ch].shock_sd
-        #algo.MChains[ch].shock_sd += step * (algo.MChains[ch].infos[algo.i,:accept_rate]- 0.234)
+        algo.MChains[ch].infos[algo.i,:shock_sd] = 
+                    algo["mc_update"]==:GLOBAL ? algo.MChains[ch].shock_sd :
+                            dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
         algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i  # Update acceptance rate
-    end
-     
+    end         
 end
 
 
