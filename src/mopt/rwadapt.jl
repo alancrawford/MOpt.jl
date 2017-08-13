@@ -76,7 +76,7 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64
     # Update acceptance rate
     algo.MChains[ch].infos[algo.i,:shock_sd] = 
         algo["mc_update"]==:GLOBAL ? algo.MChains[ch].shock_sd :
-                            dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)/Nx
+                            dot(algo.MChains[ch].shock_sd,algo.MChains[ch].shock_wgts)
 
 end
 
