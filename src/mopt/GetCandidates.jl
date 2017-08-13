@@ -87,11 +87,6 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
             @inbounds for zz in 1:algo["maxdrawiters"]
                 (ρbar,l_id,σ,w) = draw_from_ppca(M)
                 # Records which principal component changes
-                algo.MChains[ch].shock_id = l_id
-                fill!(algo.MChains[ch].shock_wgts,0.)
-                for (n,k) in enumerate(ρbar)
-                    algo.MChains[ch].shock_wgts[n] = k
-                end
                 λ = exp(algo.MChains[ch].shock_sd[l_id])                # Scaling
                 shock = λ*σ*randn()*w                                   # Vector - shock
                 shockd = Dict(zip(ps2s_names(algo) , shock))             # Put in a dictionary
@@ -106,6 +101,12 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
                     shockd = Dict(zip(ps2s_names(algo) , zeros(D)))  
                     jumpParams!(algo,ch,shockd)
                 end
+                algo.MChains[ch].shock_id = l_id
+                fill!(algo.MChains[ch].shock_wgts,0.)
+                for (n,k) in enumerate(ρbar)
+                    algo.MChains[ch].shock_wgts[n] = k
+                end
+ 
             end
         end        
 
@@ -137,13 +138,14 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
                     shockd = Dict(zip(ps2s_names(algo) , zeros(D)))  
                     jumpParams!(algo,ch,shockd)
                 end
+                # Records which principal component changes
+                algo.MChains[ch].shock_id = l_id
+                fill!(algo.MChains[ch].shock_wgts,0.)
+                for (n,k) in enumerate(ρbar)
+                    algo.MChains[ch].shock_wgts[n] = k
+                end
             end
-            # Records which principal component changes
-            algo.MChains[ch].shock_id = l_id
-            fill!(algo.MChains[ch].shock_wgts,0.)
-            for (n,k) in enumerate(ρbar)
-                algo.MChains[ch].shock_wgts[n] = k
-            end
+
         end
     end
 end
