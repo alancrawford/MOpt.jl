@@ -28,7 +28,7 @@ function getNewCandidatesBnd!(algo::MAlgoABCPT)
     # Number of parameters
     D = length(ps2s_names(algo.m))
 
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     lb = [v[:lb] for (k,v) in algo.m.params_to_sample]
     ub = [v[:ub] for (k,v) in algo.m.params_to_sample]
 
@@ -70,7 +70,7 @@ function getNewCandidatesPPCABnd!(algo::MAlgoABCPT, method::Symbol)
     # Number of parameters
     D =  length(ps2s_names(algo.m))
 
-    step = (algo.i+1)^(-0.3)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
     lb = [v[:lb] for (k,v) in algo.m.params_to_sample]
     ub = [v[:ub] for (k,v) in algo.m.params_to_sample]
     if algo["CommonCov"]
