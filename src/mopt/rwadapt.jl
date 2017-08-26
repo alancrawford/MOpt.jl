@@ -15,7 +15,7 @@ rank1update(F::Matrix{Float64}, Σ::Matrix{Float64}, Nx::Int64, ρ::Float64) = t
 function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     
     Nx = length(MOpt.ps2s_names(algo.m))
-    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.9)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -50,7 +50,7 @@ end
 function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64)
     
     Nx = length(MOpt.ps2s_names(algo.m))
-    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.9)  # Declining step size over iterations 
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
@@ -83,7 +83,7 @@ end
 
 # b.i) Common Covariance matrix across chains but separate scaling factor using prob of acceptance - NOT Regularised
 function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64})
-    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.9)  # Declining step size over iterations 
    
     Nx = length(MOpt.ps2s_names(algo.m))
     #Σ = zeros(Nx,Nx)     # Update for Covariance Matrix: pooling information across chains
@@ -133,7 +133,7 @@ end
 
 # b.ii) Common Covariance matrix across chains but separate scaling factor using prob of acceptance - Regularised
 function rwAdapt!(algo::MAlgoABCPT, pvec::Vector{Float64}, ρ::Float64)
-    step = (algo.i+1)^(-0.5)  # Declining step size over iterations 
+    step = (algo.i+1)^(-0.9)  # Declining step size over iterations 
     
     Nx = length(MOpt.ps2s_names(algo.m))
     #Σ = zeros(Nx,Nx)     # Update for Covariance Matrix: pooling information across chains
