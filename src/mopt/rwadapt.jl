@@ -20,21 +20,22 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64)
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
     
-    # Update mu
-    algo.MChains[ch].mu +=  step * ( Xtilde - algo.MChains[ch].mu )
-
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
-    #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx)
     if algo.i > algo["rwAdapt"]
-        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-        Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
-        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
+        dx = Xtilde - algo.MChains[ch].mu 
+        algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx)
+        #lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        #Σ = cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i)))
+        #algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])
         if algo["mc_update"]==:GLOBAL
             algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
         else
             algo.MChains[ch].shock_sd[algo.MChains[ch].shock_id] += step * (prob_accept - 0.234)          
         end
     end
+
+    # Update mu
+    algo.MChains[ch].mu +=  step * ( Xtilde - algo.MChains[ch].mu )
 
     # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
@@ -54,14 +55,14 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64
 
     # Get value of accepted (i.e. old or new) parameters in chain after MH
     Xtilde = convert(Array,parameters(algo.MChains[ch],algo.i)[:, ps2s_names(algo.m)])[:]
-    algo.MChains[ch].mu +=  step *( Xtilde - algo.MChains[ch].mu )
 
     # Get Cholesky Factorisation of Covariance matrix (before update mu)
-    #algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx,ρ)
     if algo.i > algo["rwAdapt"]
-        lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
-        Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
-        algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])    
+        dx = Xtilde - algo.MChains[ch].mu 
+        algo.MChains[ch].F += step*algo.MChains[ch].F*rank1update(algo.MChains[ch].F,dx,Nx,ρ)
+        #lower_bound_index = maximum([1,algo.i-algo["past_iterations"]])
+        #Σ = (1-ρ).*cov(convert(Matrix,MOpt.parameters(algo.MChains[ch],lower_bound_index:algo.i))) + ρ.*eye(Nx)
+        #algo.MChains[ch].F = convert(Matrix,cholfact(Σ)[:L])    
         if algo["mc_update"]==:GLOBAL
             algo.MChains[ch].shock_sd += step * (prob_accept - 0.234)   # Quite a simple update - maybe be slow. See AT 2008 sec 5.
         else
@@ -69,6 +70,8 @@ function rwAdapt!(algo::MAlgoABCPT, prob_accept::Float64, ch::Int64, ρ::Float64
         end
 
     end
+
+    algo.MChains[ch].mu +=  step *( Xtilde - algo.MChains[ch].mu )
 
     # Update Sampling Variance (If acceptance above long run target, set net wider by increasing variance, otherwise reduce it)
     algo.MChains[ch].infos[algo.i,:accept_rate] = sum(algo.MChains[ch].infos[1:algo.i,:accept])/algo.i
